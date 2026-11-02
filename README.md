@@ -1,5 +1,5 @@
 
-connectifysocialmedia.netlify.app
+https://connectifysocialmedia.netlify.app/
 
 # React + Vite
 
