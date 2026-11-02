@@ -1,512 +1,502 @@
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
     Search,
-    ImagePlus,
-    Send,
-    Bell,
     Users,
-    TrendingUp,
-    LoaderCircle,
+    UserPlus,
+    UserCheck,
+    UserRound,
+    Check,
     X,
+    LoaderCircle,
+    RefreshCw
 } from 'lucide-react'
 
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Sidebar from '../components/Sidebar'
-import PostCard from '../components/PostCard'
-import './Home.css'
+import './Friends.css'
 
-function Home() {
-    const { user, logout } = useAuth()
+function Friends() {
+    const { user } = useAuth()
 
-    const [posts, setPosts] = useState([])
-    const [likedPosts, setLikedPosts] = useState([])
-    const [caption, setCaption] = useState('')
-    const [selectedImage, setSelectedImage] = useState(null)
-    const [preview, setPreview] = useState('')
+    const [profiles, setProfiles] = useState([])
+    const [requests, setRequests] = useState([])
+    const [search, setSearch] = useState('')
+    const [activeTab, setActiveTab] = useState('discover')
     const [loading, setLoading] = useState(true)
-    const [uploading, setUploading] = useState(false)
+    const [actionLoading, setActionLoading] = useState(null)
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
 
-    useEffect(() => {
-        if (user?.id) {
-            fetchPosts()
-        }
-    }, [user?.id])
-
-    useEffect(() => {
-        return () => {
-            if (preview) URL.revokeObjectURL(preview)
-        }
-    }, [preview])
-
-    // Fetch posts, profiles and likes
-    const fetchPosts = async () => {
+    const fetchFriendsData = useCallback(async () => {
         if (!user?.id) return
 
         setLoading(true)
         setError('')
 
         try {
-            const { data: postData, error: postError } = await supabase
-                .from('posts')
-                .select('*')
-                .order('created_at', { ascending: false })
+            const [profilesResult, requestsResult] = await Promise.all([
+                supabase
+                    .from('profiles')
+                    .select('id, full_name, username, bio, avatar_url')
+                    .neq('id', user.id),
 
-            if (postError) throw postError
+                supabase
+                    .from('friend_requests')
+                    .select('*')
+                    .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+            ])
 
-            const userIds = [
-                ...new Set((postData || []).map(post => post.user_id)),
-            ]
+            if (profilesResult.error) throw profilesResult.error
+            if (requestsResult.error) throw requestsResult.error
 
-            let profiles = []
-            let likes = []
-
-            if (userIds.length > 0) {
-                const [profileResult, likeResult] = await Promise.all([
-                    supabase
-                        .from('profiles')
-                        .select('id, full_name, username, avatar_url')
-                        .in('id', userIds),
-
-                    supabase
-                        .from('likes')
-                        .select('post_id, user_id')
-                        .in('post_id', postData.map(post => post.id)),
-                ])
-
-                if (profileResult.error) throw profileResult.error
-                if (likeResult.error) throw likeResult.error
-
-                profiles = profileResult.data || []
-                likes = likeResult.data || []
-            }
-
-            const formattedPosts = (postData || []).map(post => ({
-                ...post,
-                profile: profiles.find(
-                    profile => profile.id === post.user_id
-                ),
-                likeCount: likes.filter(
-                    like => like.post_id === post.id
-                ).length,
-            }))
-
-            setPosts(formattedPosts)
-
-            setLikedPosts(
-                likes
-                    .filter(like => like.user_id === user.id)
-                    .map(like => like.post_id)
-            )
+            setProfiles(profilesResult.data || [])
+            setRequests(requestsResult.data || [])
         } catch (err) {
-            setError(err.message || 'Unable to load posts.')
+            console.error('Error loading friends:', err)
+            setError(err.message || 'Unable to load users. Please try again.')
         } finally {
             setLoading(false)
         }
-    }
+    }, [user?.id])
 
-    // Handle image selection
-    const handleImageChange = (e) => {
-        const file = e.target.files?.[0]
+    useEffect(() => {
+        fetchFriendsData()
+    }, [fetchFriendsData])
 
-        if (!file) return
+    const incomingRequests = useMemo(
+        () => requests.filter(
+            request =>
+                request.receiver_id === user?.id &&
+                request.status === 'pending'
+        ),
+        [requests, user?.id]
+    )
 
-        if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
-            setError('Please select a JPG, PNG, WEBP or GIF image.')
-            e.target.value = ''
-            return
+    const sentRequests = useMemo(
+        () => requests.filter(
+            request =>
+                request.sender_id === user?.id &&
+                request.status === 'pending'
+        ),
+        [requests, user?.id]
+    )
+
+    const acceptedRequests = useMemo(
+        () => requests.filter(request => request.status === 'accepted'),
+        [requests]
+    )
+
+    const friends = useMemo(() => {
+        const friendIds = new Set(
+            acceptedRequests.map(request =>
+                request.sender_id === user?.id
+                    ? request.receiver_id
+                    : request.sender_id
+            )
+        )
+
+        return profiles.filter(profile => friendIds.has(profile.id))
+    }, [profiles, acceptedRequests, user?.id])
+
+    const sentIds = useMemo(
+        () => new Set(sentRequests.map(request => request.receiver_id)),
+        [sentRequests]
+    )
+
+    const incomingIds = useMemo(
+        () => new Set(incomingRequests.map(request => request.sender_id)),
+        [incomingRequests]
+    )
+
+    const friendIds = useMemo(
+        () => new Set(friends.map(friend => friend.id)),
+        [friends]
+    )
+
+    const filteredProfiles = useMemo(() => {
+        const term = search.trim().toLowerCase()
+
+        if (activeTab === 'friends') {
+            return friends.filter(profile =>
+                `${profile.full_name || ''} ${profile.username || ''}`
+                    .toLowerCase()
+                    .includes(term)
+            )
         }
 
-        if (file.size > 5 * 1024 * 1024) {
-            setError('Image size must be less than 5 MB.')
-            e.target.value = ''
-            return
-        }
+        return profiles.filter(profile => {
+            const matchesSearch =
+                `${profile.full_name || ''} ${profile.username || ''}`
+                    .toLowerCase()
+                    .includes(term)
 
-        setError('')
-        setSelectedImage(file)
-        setPreview(URL.createObjectURL(file))
-    }
+            return matchesSearch &&
+                !friendIds.has(profile.id) &&
+                !sentIds.has(profile.id) &&
+                !incomingIds.has(profile.id)
+        })
+    }, [
+        profiles,
+        friends,
+        search,
+        activeTab,
+        friendIds,
+        sentIds,
+        incomingIds
+    ])
 
-    // Remove selected image
-    const removeImage = () => {
-        setSelectedImage(null)
-        setPreview('')
-    }
-
-    // Create a new post
-    const handleCreatePost = async (e) => {
-        e.preventDefault()
-
-        if (!selectedImage) {
-            setError('Please select an image for your post.')
-            return
-        }
-
-        setUploading(true)
+    const handleSendRequest = async profileId => {
+        setActionLoading(profileId)
         setError('')
         setSuccess('')
 
-        let uploadedFilePath = null
-
         try {
-            const filePath = `${user.id}/${crypto.randomUUID()}-${selectedImage.name}`
-
-            const { error: uploadError } = await supabase.storage
-                .from('post-images')
-                .upload(filePath, selectedImage)
-
-            if (uploadError) throw uploadError
-
-            uploadedFilePath = filePath
-
-            const { data: imageData } = supabase.storage
-                .from('post-images')
-                .getPublicUrl(filePath)
-
             const { error: insertError } = await supabase
-                .from('posts')
+                .from('friend_requests')
                 .insert({
-                    user_id: user.id,
-                    caption: caption.trim(),
-                    image_url: imageData.publicUrl,
+                    sender_id: user.id,
+                    receiver_id: profileId,
+                    status: 'pending'
                 })
 
             if (insertError) throw insertError
 
-            setCaption('')
-            setSelectedImage(null)
-            setPreview('')
-            setSuccess('Your post has been published!')
-
-            await fetchPosts()
+            setSuccess('Friend request sent!')
+            await fetchFriendsData()
         } catch (err) {
-            // Clean up uploaded image if post creation fails
-            if (uploadedFilePath) {
-                await supabase.storage
-                    .from('post-images')
-                    .remove([uploadedFilePath])
-            }
-
-            setError(err.message || 'Unable to publish your post.')
+            console.error('Send request error:', err)
+            setError(
+                err.code === '23505'
+                    ? 'A request already exists between these users.'
+                    : err.message || 'Could not send friend request.'
+            )
         } finally {
-            setUploading(false)
+            setActionLoading(null)
         }
     }
 
-    // Delete your own post
-    const handleDeletePost = async (postId) => {
+    const handleRequestResponse = async (requestId, status) => {
+        setActionLoading(requestId)
         setError('')
         setSuccess('')
 
-        const postToDelete = posts.find(post => post.id === postId)
+        try {
+            const { error: updateError } = await supabase
+                .from('friend_requests')
+                .update({ status })
+                .eq('id', requestId)
+                .eq('receiver_id', user.id)
+                .eq('status', 'pending')
 
-        if (!postToDelete || postToDelete.user_id !== user.id) {
-            setError('You can only delete your own posts.')
-            return
+            if (updateError) throw updateError
+
+            setSuccess(
+                status === 'accepted'
+                    ? 'Friend request accepted!'
+                    : 'Friend request rejected.'
+            )
+
+            await fetchFriendsData()
+        } catch (err) {
+            console.error('Request response error:', err)
+            setError(err.message || 'Could not update friend request.')
+        } finally {
+            setActionLoading(null)
         }
+    }
+
+    const handleCancelRequest = async requestId => {
+        setActionLoading(requestId)
+        setError('')
+        setSuccess('')
 
         try {
-            // Delete the post from the database
-            const { data, error: deleteError } = await supabase
-                .from('posts')
+            const { error: deleteError } = await supabase
+                .from('friend_requests')
                 .delete()
-                .eq('id', postId)
-                .eq('user_id', user.id)
-                .select('id')
+                .eq('id', requestId)
+                .eq('sender_id', user.id)
+                .eq('status', 'pending')
 
             if (deleteError) throw deleteError
 
-            if (!data || data.length === 0) {
-                throw new Error('Unable to delete this post. Please try again.')
-            }
-
-            // Remove the post from the feed immediately
-            setPosts(previous =>
-                previous.filter(post => post.id !== postId)
-            )
-
-            setLikedPosts(previous =>
-                previous.filter(id => id !== postId)
-            )
-
-            // Remove the associated image from Supabase Storage
-            if (postToDelete.image_url) {
-                const storagePrefix =
-                    '/storage/v1/object/public/post-images/'
-
-                const imageUrl = new URL(postToDelete.image_url)
-                const prefixIndex = imageUrl.pathname.indexOf(storagePrefix)
-
-                if (prefixIndex !== -1) {
-                    const encodedPath = imageUrl.pathname.slice(
-                        prefixIndex + storagePrefix.length
-                    )
-
-                    const imagePath = decodeURIComponent(encodedPath)
-
-                    const { error: storageError } = await supabase.storage
-                        .from('post-images')
-                        .remove([imagePath])
-
-                    if (storageError) {
-                        console.error('Image cleanup failed:', storageError)
-                        setError('Post deleted, but its image could not be removed from storage.')
-                        return
-                    }
-                }
-            }
-
-            setSuccess('Post deleted successfully.')
+            setSuccess('Friend request cancelled.')
+            await fetchFriendsData()
         } catch (err) {
-            setError(err.message || 'Unable to delete post.')
+            console.error('Cancel request error:', err)
+            setError(err.message || 'Could not cancel request.')
+        } finally {
+            setActionLoading(null)
         }
     }
 
-    // Like or unlike a post
-    const handleLike = async (postId) => {
-        const alreadyLiked = likedPosts.includes(postId)
+    const getProfile = profileId =>
+        profiles.find(profile => profile.id === profileId)
 
-        setError('')
+    const getRequestId = profileId =>
+        sentRequests.find(request => request.receiver_id === profileId)?.id
 
-        if (alreadyLiked) {
-            const { error } = await supabase
-                .from('likes')
-                .delete()
-                .eq('post_id', postId)
-                .eq('user_id', user.id)
+    const tabs = [
+        { id: 'discover', label: 'Discover', count: null },
+        { id: 'friends', label: 'My Friends', count: friends.length },
+        { id: 'received', label: 'Received', count: incomingRequests.length },
+        { id: 'sent', label: 'Sent', count: sentRequests.length }
+    ]
 
-            if (error) {
-                setError(error.message)
-                return
-            }
+    const renderAvatar = profile => (
+        <div className="friend-avatar">
+            {profile?.avatar_url ? (
+                <img
+                    src={profile.avatar_url}
+                    alt={profile.full_name || 'User'}
+                />
+            ) : (
+                <UserRound size={26} />
+            )}
+        </div>
+    )
 
-            setLikedPosts(previous =>
-                previous.filter(id => id !== postId)
-            )
+    const renderProfileCard = profile => {
+        const isLoading = actionLoading === profile.id
 
-            setPosts(previous =>
-                previous.map(post =>
-                    post.id === postId
-                        ? { ...post, likeCount: post.likeCount - 1 }
-                        : post
-                )
-            )
-        } else {
-            const { error } = await supabase
-                .from('likes')
-                .insert({
-                    post_id: postId,
-                    user_id: user.id,
-                })
+        return (
+            <div className="friend-card" key={profile.id}>
+                {renderAvatar(profile)}
 
-            if (error) {
-                setError(error.message)
-                return
-            }
+                <div className="friend-card-info">
+                    <h3>{profile.full_name || 'Unnamed User'}</h3>
+                    <p>@{profile.username || 'user'}</p>
+                    {profile.bio && <span>{profile.bio}</span>}
+                </div>
 
-            setLikedPosts(previous => [...previous, postId])
+                <button
+                    className="friend-action-btn"
+                    onClick={() => handleSendRequest(profile.id)}
+                    disabled={isLoading}
+                >
+                    {isLoading ? (
+                        <LoaderCircle className="spin" size={17} />
+                    ) : (
+                        <>
+                            <UserPlus size={17} />
+                            Add Friend
+                        </>
+                    )}
+                </button>
+            </div>
+        )
+    }
 
-            setPosts(previous =>
-                previous.map(post =>
-                    post.id === postId
-                        ? { ...post, likeCount: post.likeCount + 1 }
-                        : post
-                )
-            )
-        }
+    const renderIncomingCard = request => {
+        const profile = getProfile(request.sender_id)
+        if (!profile) return null
+
+        const isLoading = actionLoading === request.id
+
+        return (
+            <div className="friend-card" key={request.id}>
+                {renderAvatar(profile)}
+
+                <div className="friend-card-info">
+                    <h3>{profile.full_name || 'Unnamed User'}</h3>
+                    <p>@{profile.username || 'user'}</p>
+                </div>
+
+                <div className="friend-card-actions">
+                    <button
+                        className="friend-action-btn"
+                        onClick={() => handleRequestResponse(request.id, 'accepted')}
+                        disabled={isLoading}
+                        title="Accept request"
+                    >
+                        {isLoading ? <LoaderCircle className="spin" size={17} /> : <Check size={17} />}
+                        Accept
+                    </button>
+
+                    <button
+                        className="friend-secondary-btn"
+                        onClick={() => handleRequestResponse(request.id, 'rejected')}
+                        disabled={isLoading}
+                        title="Reject request"
+                    >
+                        <X size={17} />
+                        Reject
+                    </button>
+                </div>
+            </div>
+        )
+    }
+
+    const renderSentCard = request => {
+        const profile = getProfile(request.receiver_id)
+        if (!profile) return null
+
+        const isLoading = actionLoading === request.id
+
+        return (
+            <div className="friend-card" key={request.id}>
+                {renderAvatar(profile)}
+
+                <div className="friend-card-info">
+                    <h3>{profile.full_name || 'Unnamed User'}</h3>
+                    <p>@{profile.username || 'user'}</p>
+                    <span>Request pending</span>
+                </div>
+
+                <button
+                    className="friend-secondary-btn"
+                    onClick={() => handleCancelRequest(request.id)}
+                    disabled={isLoading}
+                >
+                    {isLoading ? (
+                        <LoaderCircle className="spin" size={17} />
+                    ) : (
+                        <>
+                            <X size={17} />
+                            Cancel
+                        </>
+                    )}
+                </button>
+            </div>
+        )
+    }
+
+    const renderFriendCard = profile => (
+        <div className="friend-card" key={profile.id}>
+            {renderAvatar(profile)}
+
+            <div className="friend-card-info">
+                <h3>{profile.full_name || 'Unnamed User'}</h3>
+                <p>@{profile.username || 'user'}</p>
+            </div>
+
+            <span className="friend-status">
+                <UserCheck size={17} />
+                Friends
+            </span>
+        </div>
+    )
+
+    const renderEmptyState = (message, description) => (
+        <div className="friends-empty">
+            <Users size={42} />
+            <h3>{message}</h3>
+            <p>{description}</p>
+        </div>
+    )
+
+    let content
+
+    if (loading) {
+        content = (
+            <div className="friends-empty">
+                <LoaderCircle className="spin" size={32} />
+                <p>Loading users...</p>
+            </div>
+        )
+    } else if (activeTab === 'received') {
+        content = incomingRequests.length ? (
+            <div className="friends-grid">
+                {incomingRequests.map(renderIncomingCard)}
+            </div>
+        ) : renderEmptyState(
+            'No received requests',
+            'When someone sends you a friend request, it will appear here.'
+        )
+    } else if (activeTab === 'sent') {
+        content = sentRequests.length ? (
+            <div className="friends-grid">
+                {sentRequests.map(renderSentCard)}
+            </div>
+        ) : renderEmptyState(
+            'No pending requests',
+            'Friend requests you send will appear here.'
+        )
+    } else if (filteredProfiles.length) {
+        content = (
+            <div className="friends-grid">
+                {activeTab === 'friends'
+                    ? filteredProfiles.map(renderFriendCard)
+                    : filteredProfiles.map(renderProfileCard)}
+            </div>
+        )
+    } else {
+        content = activeTab === 'friends'
+            ? renderEmptyState('No friends yet', 'Discover people and send them a friend request.')
+            : renderEmptyState('No users found', 'Try another search or check back later.')
     }
 
     return (
-        <div className="home-layout">
+        <div className="friends-layout">
+            <Sidebar activePage="Friends" />
 
-            <Sidebar onLogout={logout} />
-
-            <main className="feed-area">
-
-                <header className="feed-header">
+            <main className="friends-main">
+                <header className="friends-header">
                     <div>
-                        <h1>Home Feed</h1>
-                        <p>Stay connected with your world.</p>
+                        <span className="friends-eyebrow">YOUR COMMUNITY</span>
+                        <h1>Friends</h1>
+                        <p>Find people, connect and grow your network.</p>
                     </div>
 
-                    <div className="feed-header-actions">
-                        <button type="button" className="header-icon">
-                            <Search size={20} />
-                        </button>
-                        <button type="button" className="header-icon">
-                            <Bell size={20} />
-                        </button>
-                    </div>
+                    <button
+                        className="friend-secondary-btn"
+                        onClick={fetchFriendsData}
+                        disabled={loading}
+                    >
+                        <RefreshCw size={17} />
+                        Refresh
+                    </button>
                 </header>
 
-                <section className="feed-content">
-
-                    <div className="welcome-banner">
+                <section className="friends-content">
+                    <div className="friends-banner">
                         <div>
-                            <span>YOUR SOCIAL SPACE</span>
-                            <h2>What's happening today?</h2>
-                            <p>Share a moment with your Connectify community.</p>
+                            <h2>Build your network</h2>
+                            <p>Discover people and connect with them on Connectify.</p>
                         </div>
-                        <Users size={48} />
+                        <Users size={42} />
                     </div>
 
-                    <section className="create-post-card">
-                        <div className="create-post-heading">
-                            <div className="current-avatar">
-                                {(user?.user_metadata?.full_name || user?.email || 'U')
-                                    .charAt(0).toUpperCase()}
-                            </div>
-
-                            <div>
-                                <h3>Create a post</h3>
-                                <p>Share something with your friends</p>
-                            </div>
-                        </div>
-
-                        <form onSubmit={handleCreatePost}>
-                            <textarea
-                                value={caption}
-                                onChange={e => setCaption(e.target.value)}
-                                placeholder="What's on your mind?"
-                                rows={3}
-                                maxLength={1000}
-                            />
-
-                            {preview && (
-                                <div className="image-preview">
-                                    <img src={preview} alt="Post preview" />
-                                    <button
-                                        type="button"
-                                        onClick={removeImage}
-                                        aria-label="Remove selected image"
-                                    >
-                                        <X size={18} />
-                                    </button>
-                                </div>
-                            )}
-
-                            <div className="create-post-footer">
-                                <label className="upload-image-button">
-                                    <ImagePlus size={20} />
-                                    <span>Add photo</span>
-                                    <input
-                                        type="file"
-                                        accept="image/jpeg,image/png,image/webp,image/gif"
-                                        onChange={handleImageChange}
-                                        hidden
-                                    />
-                                </label>
-
-                                <button
-                                    type="submit"
-                                    className="publish-button"
-                                    disabled={uploading || !selectedImage}
-                                >
-                                    {uploading ? (
-                                        <LoaderCircle size={18} className="spin" />
-                                    ) : (
-                                        <Send size={17} />
-                                    )}
-                                    {uploading ? 'Publishing...' : 'Publish'}
-                                </button>
-                            </div>
-                        </form>
-                    </section>
-
-                    {error && (
-                        <div className="feed-message error-message">
-                            {error}
-                        </div>
-                    )}
-
-                    {success && (
-                        <div className="feed-message success-message">
-                            {success}
-                        </div>
-                    )}
-
-                    <div className="feed-section-heading">
-                        <h2>Recent posts</h2>
-                        <button type="button" onClick={fetchPosts}>
-                            Refresh
-                        </button>
+                    <div className="friends-tabs">
+                        {tabs.map(tab => (
+                            <button
+                                key={tab.id}
+                                className={activeTab === tab.id ? 'active' : ''}
+                                onClick={() => {
+                                    setActiveTab(tab.id)
+                                    setSearch('')
+                                    setError('')
+                                    setSuccess('')
+                                }}
+                            >
+                                {tab.label}
+                                {tab.count !== null && (
+                                    <span>{tab.count}</span>
+                                )}
+                            </button>
+                        ))}
                     </div>
 
-                    {loading ? (
-                        <div className="feed-loading">
-                            <LoaderCircle size={30} className="spin" />
-                            <p>Loading your feed...</p>
-                        </div>
-                    ) : posts.length === 0 ? (
-                        <div className="empty-feed">
-                            <ImagePlus size={40} />
-                            <h3>No posts yet</h3>
-                            <p>Be the first to share a moment with your community.</p>
-                        </div>
-                    ) : (
-                        <div className="posts-list">
-                            {posts.map(post => (
-                                <PostCard
-                                    key={post.id}
-                                    post={post}
-                                    liked={likedPosts.includes(post.id)}
-                                    onLike={handleLike}
-                                    onDelete={handleDeletePost}
-                                />
-                            ))}
-                        </div>
-                    )}
+                    <div className="friends-search">
+                        <Search size={19} />
+                        <input
+                            type="text"
+                            placeholder="Search by name or username..."
+                            value={search}
+                            onChange={event => setSearch(event.target.value)}
+                        />
+                    </div>
 
+                    {error && <div className="friends-error">{error}</div>}
+                    {success && <div className="friends-success">{success}</div>}
+
+                    {content}
                 </section>
             </main>
-
-            <aside className="right-sidebar">
-
-                <div className="profile-summary">
-                    <div className="current-avatar large">
-                        {(user?.user_metadata?.full_name || user?.email || 'U')
-                            .charAt(0).toUpperCase()}
-                    </div>
-
-                    <h3>{user?.user_metadata?.full_name || 'Connectify User'}</h3>
-                    <p>{user?.email}</p>
-                    <span>Member of Connectify</span>
-                </div>
-
-                <div className="trending-card">
-                    <div className="trending-heading">
-                        <TrendingUp size={20} />
-                        <h3>Community</h3>
-                    </div>
-
-                    <p>
-                        Share your moments, connect with new people and make your community grow.
-                    </p>
-
-                    <div className="community-note">
-                        <SparklesIcon />
-                        <span>Your next connection starts here.</span>
-                    </div>
-                </div>
-
-                <p className="sidebar-copyright">
-                    © 2026 Connectify
-                    <br />
-                    Made for meaningful connections.
-                </p>
-
-            </aside>
-
         </div>
     )
 }
 
-function SparklesIcon() {
-    return <span aria-hidden="true">✦</span>
-}
-
-export default Home
+export default Friends
