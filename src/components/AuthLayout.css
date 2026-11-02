@@ -1,0 +1,241 @@
+.auth-page {
+    min-height: 100vh;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: #09090f;
+    color: #ffffff;
+    font-family: Inter, Arial, sans-serif;
+}
+
+.auth-brand {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    background:
+        radial-gradient(ellipse at 15% 15%, rgba(124, 58, 237, 0.19), transparent 50%),
+        radial-gradient(ellipse at 80% 85%, rgba(37, 99, 235, 0.16), transparent 50%),
+        #0c0a14;
+}
+
+.brand-content {
+    width: 100%;
+    max-width: 600px;
+}
+
+.brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 25px;
+    font-weight: 750;
+    letter-spacing: -0.5px;
+    margin-bottom: 55px;
+}
+
+.brand-icon {
+    width: 54px;
+    height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 17px;
+    background: linear-gradient(135deg, #a855f7, #4f46e5);
+    box-shadow: 0 8px 30px rgba(124, 58, 237, 0.35);
+}
+
+.brand-dot {
+    color: #a78bfa;
+}
+
+.brand-heading h1 {
+    font-size: clamp(40px, 4vw, 60px);
+    line-height: 1.18;
+    font-weight: 800;
+    letter-spacing: -2px;
+    margin: 0;
+}
+
+.gradient-text {
+    background: linear-gradient(90deg, #c084fc, #60a5fa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.brand-description {
+    max-width: 540px;
+    margin-top: 24px;
+    color: #a1a1aa;
+    font-size: 17px;
+    line-height: 1.8;
+}
+
+.brand-features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 38px;
+}
+
+.feature-card {
+    padding: 22px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.035);
+    transition: 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(167, 139, 250, 0.4);
+}
+
+.feature-card h3 {
+    font-size: 16px;
+    margin: 12px 0 5px;
+}
+
+.feature-card p {
+    font-size: 13px;
+    color: #85859a;
+    margin: 0;
+}
+
+.feature-purple {
+    color: #a78bfa;
+}
+
+.feature-blue {
+    color: #60a5fa;
+}
+
+.feature-pink {
+    color: #f472b6;
+}
+
+.brand-copyright {
+    color: #666579;
+    font-size: 13px;
+    margin-top: 35px;
+}
+
+.auth-form-section {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 50px 35px;
+    background:
+        radial-gradient(circle at 80% 10%, rgba(124, 58, 237, 0.10), transparent 40%),
+        #09090f;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 470px;
+    padding: 42px;
+    border-radius: 26px;
+    background: #13131e;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.35);
+}
+
+.auth-eyebrow {
+    color: #a78bfa;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+
+.auth-heading h2 {
+    font-size: 32px;
+    margin: 13px 0 10px;
+    font-weight: 750;
+    letter-spacing: -0.8px;
+}
+
+.auth-heading p {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #9999aa;
+    margin: 0 0 30px;
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 27px;
+}
+
+.auth-legal {
+    color: #666579;
+    font-size: 12px;
+    text-align: center;
+    margin-top: 25px;
+    line-height: 1.7;
+}
+
+.mobile-brand {
+    display: none;
+}
+
+@media (max-width: 1050px) {
+    .auth-brand {
+        padding: 35px;
+    }
+
+    .brand-heading h1 {
+        font-size: 42px;
+    }
+
+    .auth-card {
+        padding: 32px;
+    }
+}
+
+@media (max-width: 768px) {
+    .auth-page {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-brand {
+        display: none;
+    }
+
+    .auth-form-section {
+        padding: 35px 20px;
+    }
+
+    .mobile-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 30px;
+        font-size: 24px;
+        font-weight: 750;
+        color: #c4b5fd;
+    }
+
+    .mobile-brand svg {
+        color: #a78bfa;
+    }
+
+    .auth-card {
+        max-width: 470px;
+        padding: 30px 24px;
+    }
+
+    .auth-heading h2 {
+        font-size: 28px;
+    }
+}
+
+@media (max-width: 380px) {
+    .auth-card {
+        padding: 24px 18px;
+    }
+}

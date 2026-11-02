@@ -1,0 +1,69 @@
+
+import { NavLink } from 'react-router-dom';
+import {
+    Home,
+    Compass,
+    Users,
+    MessageCircle,
+    UserRound,
+    Bell,
+    Settings,
+    LogOut,
+    Sparkles,
+} from 'lucide-react';
+
+function Sidebar({ activePage = 'Home', onLogout }) {
+    const menuItems = [
+        { name: 'Home', icon: Home, path: '/' },
+        { name: 'Explore', icon: Compass, path: '/explore' },
+        { name: 'Friends', icon: Users, path: '/friends' },
+        { name: 'Messages', icon: MessageCircle, path: '/messages' },
+        { name: 'Notifications', icon: Bell, path: '/notifications' },
+        { name: 'Profile', icon: UserRound, path: '/profile' },
+        { name: 'Settings', icon: Settings, path: '/settings' },
+    ];
+
+    return (
+        <aside className="sidebar">
+            <div className="sidebar-logo">
+                <div className="sidebar-logo-icon">
+                    <Sparkles size={22} />
+                </div>
+                <span>
+                    Connectify<span className="brand-dot">.</span>
+                </span>
+            </div>
+
+            <p className="sidebar-label">MENU</p>
+
+            <nav className="sidebar-nav">
+                {menuItems.map(({ name, icon: Icon, path }) => (
+                    <NavLink
+                        key={name}
+                        to={path}
+                        end={path === '/'}
+                        className={({ isActive }) =>
+                            `sidebar-link ${isActive ? 'active' : ''}`
+                        }
+                    >
+                        <Icon size={20} />
+                        <span>{name}</span>
+                    </NavLink>
+                ))}
+            </nav>
+
+            <div className="sidebar-bottom">
+                <button
+                    type="button"
+                    className="sidebar-link logout-link"
+                    onClick={onLogout}
+                >
+                    <LogOut size={20} />
+                    <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+    );
+}
+
+export default Sidebar;

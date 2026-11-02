@@ -1,0 +1,100 @@
+
+@import "tailwindcss";
+
+/* Global reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  width: 100%;
+  min-height: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  width: 100%;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  background-color: #030712;
+  color: #ffffff;
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Responsive images */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Form elements */
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  max-width: 100%;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Prevent long text from breaking layouts */
+p,
+h1,
+h2,
+h3,
+h4,
+span {
+  overflow-wrap: break-word;
+}
+
+/* Mobile-friendly page spacing */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+
+
+/* Restore Logout option on mobile navigation */
+@media (max-width: 900px) {
+    .home-layout .sidebar-bottom,
+    .explore-layout .sidebar-bottom,
+    .friends-layout .sidebar-bottom,
+    .messages-layout .sidebar-bottom,
+    .profile-layout .sidebar-bottom,
+    .notifications-layout .sidebar-bottom,
+    .settings-layout .sidebar-bottom {
+        display: flex !important;
+        justify-content: center;
+        width: 100%;
+        margin-top: 10px;
+        padding: 8px 0 0;
+        border-top: 1px solid #292938;
+    }
+
+    .home-layout .logout-link,
+    .explore-layout .logout-link,
+    .friends-layout .logout-link,
+    .messages-layout .logout-link,
+    .profile-layout .logout-link,
+    .notifications-layout .logout-link,
+    .settings-layout .logout-link {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        padding: 10px;
+    }
+}

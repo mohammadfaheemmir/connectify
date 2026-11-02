@@ -1,0 +1,400 @@
+
+.settings-layout {
+    display: flex;
+    min-height: 100vh;
+    background: #09090f;
+    color: #f4f4f5;
+}
+
+.settings-main {
+    flex: 1;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 40px;
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.settings-eyebrow {
+    color: #a78bfa;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+}
+
+.settings-header h1 {
+    font-size: 29px;
+    margin: 8px 0;
+}
+
+.settings-header p,
+.settings-section p {
+    color: #a1a1aa;
+    font-size: 14px;
+    margin: 0;
+}
+
+.settings-header > svg,
+.settings-section-heading > svg {
+    color: #a78bfa;
+}
+
+.settings-section {
+    background: #13131e;
+    border: 1px solid #272735;
+    border-radius: 14px;
+    padding: 25px;
+    margin-bottom: 22px;
+}
+
+.settings-section-heading {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    margin-bottom: 25px;
+}
+
+.settings-section-heading h2,
+.settings-account-section h2 {
+    font-size: 18px;
+    margin: 0 0 7px;
+}
+
+.settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.settings-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    color: #e4e4e7;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.settings-form input,
+.settings-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 13px 14px;
+    border: 1px solid #303041;
+    border-radius: 9px;
+    background: #0c0c15;
+    color: #f4f4f5;
+    font: inherit;
+    outline: none;
+    resize: vertical;
+}
+
+.settings-form input:focus,
+.settings-form textarea:focus {
+    border-color: #8b5cf6;
+}
+
+.settings-form input::placeholder,
+.settings-form textarea::placeholder {
+    color: #71717a;
+}
+
+.settings-character-count {
+    color: #71717a;
+    font-size: 12px;
+    text-align: right;
+}
+
+.settings-save-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    width: fit-content;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 9px;
+    background: #8b5cf6;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.settings-save-button:hover {
+    background: #7c3aed;
+}
+
+.settings-save-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.settings-message {
+    font-size: 14px;
+}
+
+.settings-message.success {
+    color: #4ade80;
+}
+
+.settings-message.error {
+    color: #f87171;
+}
+
+.settings-account-section > p {
+    margin: 12px 0;
+}
+
+.settings-email {
+    padding: 13px;
+    border-radius: 8px;
+    background: #0c0c15;
+    border: 1px solid #303041;
+    color: #d4d4d8;
+}
+
+.settings-note {
+    display: block;
+    margin-top: 10px;
+    color: #71717a;
+    font-size: 12px;
+}
+
+.settings-spinner {
+    animation: settings-spin 1s linear infinite;
+}
+
+@keyframes settings-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 768px) {
+    .settings-main {
+        padding: 25px 18px;
+    }
+
+    .settings-section {
+        padding: 20px;
+    }
+}
+
+
+
+
+/* Security section */
+
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-wrapper input {
+    padding-right: 48px;
+}
+
+.password-visibility-button {
+    position: absolute;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+    border: none;
+    background: transparent;
+    color: #a1a1aa;
+    cursor: pointer;
+}
+
+.password-visibility-button:hover {
+    color: #a78bfa;
+}
+
+.settings-password-hint {
+    color: #a1a1aa;
+    font-size: 12px;
+    margin: -8px 0 0;
+}
+
+.settings-account-section {
+    margin-bottom: 30px;
+}
+
+
+
+/* Settings page responsive improvements */
+
+.settings-layout {
+    width: 100%;
+    min-width: 0;
+}
+
+.settings-main {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* Tablet and mobile navigation */
+@media (max-width: 900px) {
+    .settings-layout {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .settings-layout > .sidebar {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        height: auto;
+        position: relative;
+        flex: none;
+        padding: 12px;
+        border-right: none;
+        border-bottom: 1px solid #222231;
+    }
+
+    .settings-layout .sidebar-logo {
+        margin-bottom: 12px;
+    }
+
+    .settings-layout .sidebar-label,
+    .settings-layout .sidebar-bottom {
+        display: none;
+    }
+
+    .settings-layout .sidebar-nav {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 4px;
+        width: 100%;
+    }
+
+    .settings-layout .sidebar-nav .sidebar-link {
+        width: 100%;
+        min-width: 0;
+        justify-content: center;
+        padding: 10px 2px;
+        gap: 0;
+    }
+
+    .settings-layout .sidebar-nav .sidebar-link span {
+        display: none;
+    }
+
+    .settings-layout .sidebar-nav .sidebar-link svg {
+        width: 19px;
+        height: 19px;
+        flex-shrink: 0;
+    }
+
+    .settings-main {
+        max-width: 100%;
+        padding: 28px 20px;
+    }
+}
+
+/* Mobile screens */
+@media (max-width: 600px) {
+    .settings-main {
+        padding: 20px 12px;
+    }
+
+    .settings-header {
+        gap: 12px;
+        margin-bottom: 22px;
+    }
+
+    .settings-header h1 {
+        font-size: 24px;
+    }
+
+    .settings-header p,
+    .settings-section p {
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .settings-section {
+        padding: 17px;
+        margin-bottom: 16px;
+        border-radius: 12px;
+    }
+
+    .settings-section-heading {
+        gap: 10px;
+        margin-bottom: 19px;
+    }
+
+    .settings-section-heading h2,
+    .settings-account-section h2 {
+        font-size: 16px;
+    }
+
+    .settings-form {
+        gap: 16px;
+    }
+
+    .settings-form label {
+        font-size: 13px;
+    }
+
+    .settings-form input,
+    .settings-form textarea {
+        padding: 12px;
+        font-size: 13px;
+    }
+
+    .settings-save-button {
+        width: 100%;
+        padding: 13px;
+    }
+
+    .settings-email {
+        overflow-wrap: anywhere;
+        font-size: 13px;
+    }
+
+    .settings-account-section {
+        margin-bottom: 20px;
+    }
+
+    .password-input-wrapper {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .password-input-wrapper input {
+        min-width: 0;
+    }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+    .settings-main {
+        padding: 16px 9px;
+    }
+
+    .settings-section {
+        padding: 14px;
+    }
+
+    .settings-header h1 {
+        font-size: 22px;
+    }
+
+    .settings-section-heading {
+        gap: 8px;
+    }
+
+    .settings-section-heading h2 {
+        font-size: 15px;
+    }
+}
