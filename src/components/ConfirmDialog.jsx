@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 
 // Modal confirmation using the native <dialog> element, which handles
 // focus trapping and Escape for us.
-function ConfirmDialog({ open, title, body, confirmLabel, onConfirm, onCancel, busy = false }) {
+function ConfirmDialog({ open, title, body, confirmLabel, onConfirm, onCancel, busy = false, busyLabel = 'Deleting…' }) {
     const ref = useRef(null);
 
     useEffect(() => {
@@ -35,7 +35,7 @@ function ConfirmDialog({ open, title, body, confirmLabel, onConfirm, onCancel, b
                         Cancel
                     </button>
                     <button type="button" className="button-danger" onClick={onConfirm} disabled={busy}>
-                        {busy ? 'Deleting…' : confirmLabel}
+                        {busy ? busyLabel : confirmLabel}
                     </button>
                 </div>
             </div>
