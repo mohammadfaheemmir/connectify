@@ -75,3 +75,219 @@
         width: auto;
     }
 }
+
+/* ==========================================================
+   PHONE NAVIGATION (700px and below)
+   Slim top bar + bottom tab bar replace the sidebar.
+   ========================================================== */
+
+:root {
+    --topbar-h: 56px;
+    --tabbar-h: 62px;
+    --tabbar-space: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+}
+
+.mobile-topbar,
+.mobile-tabbar {
+    display: none;
+}
+
+@media (max-width: 700px) {
+    .sidebar {
+        display: none !important;
+    }
+
+    /* Top bar */
+    .mobile-topbar {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        width: 100%;
+        height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
+        padding: env(safe-area-inset-top, 0px) 8px 0 14px;
+        background: var(--header-bg);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border-bottom: 1px solid var(--border);
+    }
+
+    .mobile-topbar-logo {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: var(--text);
+        font-size: 19px;
+        font-weight: 800;
+        letter-spacing: -0.3px;
+        text-decoration: none;
+    }
+
+    .mobile-topbar-icon {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        color: #ffffff;
+        background: linear-gradient(135deg, #a855f7, #4f46e5);
+        border-radius: 10px;
+    }
+
+    .mobile-topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .mobile-topbar-button {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        color: var(--text);
+        border-radius: 12px;
+    }
+
+    .mobile-topbar-actions .icon-button {
+        width: 44px;
+        height: 44px;
+        color: var(--text);
+    }
+
+    .mobile-topbar-button:active,
+    .mobile-topbar-actions .icon-button:active {
+        background: var(--surface-hover);
+    }
+
+    .mobile-badge {
+        position: absolute;
+        top: 5px;
+        right: 4px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 4px;
+        display: grid;
+        place-items: center;
+        color: #ffffff;
+        background: #7c3aed;
+        border: 2px solid var(--bg);
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Bottom tab bar */
+    .mobile-tabbar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 40;
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        align-items: center;
+        height: var(--tabbar-space);
+        padding: 0 4px env(safe-area-inset-bottom, 0px);
+        background: var(--header-bg);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border-top: 1px solid var(--border);
+    }
+
+    .mobile-tab {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        height: var(--tabbar-h);
+        padding: 0;
+        color: var(--text-muted);
+        background: none;
+        border: none;
+        font-size: 11px;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-tab span {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .mobile-tab.active {
+        color: var(--accent-text);
+    }
+
+    .mobile-tab.active svg {
+        stroke-width: 2.4;
+    }
+
+    .mobile-create-icon {
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 40px;
+        color: #ffffff;
+        background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+        border-radius: 14px;
+        box-shadow: 0 6px 18px rgba(124, 58, 237, 0.35);
+        transition: transform 0.15s;
+    }
+
+    .mobile-tab.create:active .mobile-create-icon {
+        transform: scale(0.94);
+    }
+
+    .mobile-tab:focus-visible,
+    .mobile-topbar a:focus-visible,
+    .mobile-topbar button:focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+        border-radius: 12px;
+    }
+
+    /* Leave room for the tab bar while it is shown. */
+    html.has-tabbar body {
+        padding-bottom: var(--tabbar-space);
+    }
+
+    html.has-tabbar .messages-layout {
+        height: calc(100dvh - var(--tabbar-space));
+    }
+
+    /* Keep notices above the tab bar. */
+    html.has-tabbar .toast,
+    html.has-tabbar .fr-toast,
+    html.has-tabbar .st-toast,
+    html.has-tabbar .ex-toast,
+    html.has-tabbar .pf-toast,
+    html.has-tabbar .notif-toast {
+        bottom: calc(var(--tabbar-space) + 12px);
+    }
+
+    /* Home's own header (search + bell) is covered by the bars. */
+    .feed-header {
+        display: none;
+    }
+
+    .new-posts-pill {
+        top: calc(var(--topbar-h) + 10px);
+    }
+}
+
+@media (max-width: 700px) and (prefers-reduced-motion: reduce) {
+    .mobile-create-icon {
+        transition: none;
+    }
+}
