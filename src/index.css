@@ -141,3 +141,19 @@ span {
   outline-offset: 2px;
   border-radius: 3px;
 }
+
+/* Avatars that link to a profile */
+.avatar-link {
+  display: inline-flex;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.avatar-link:hover {
+  opacity: 0.88;
+}
+
+.avatar-link:focus-visible {
+  outline: 2px solid #a78bfa;
+  outline-offset: 2px;
+}

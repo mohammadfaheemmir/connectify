@@ -4,6 +4,7 @@ import { Heart, LoaderCircle, MessageCircle, Send, Trash2 } from 'lucide-react'
 
 import { useAuth } from '../context/AuthContext'
 import Avatar from './Avatar'
+import ProfileLink from './ProfileLink'
 import PostMenu from './PostMenu'
 import ConfirmDialog from './ConfirmDialog'
 import { addComment, deleteComment, fetchComments } from '../lib/feedApi'
@@ -106,9 +107,13 @@ function PostCard({ post, myProfile, onToggleLike, onDelete, onCommentCountChang
     return (
         <article className="post-card" aria-labelledby={`post-${post.id}-author`}>
             <header className="post-header">
-                <Avatar profile={post.profile} size={42} />
+                <ProfileLink profile={post.profile} className="avatar-link" tabIndex={-1} aria-hidden="true">
+                    <Avatar profile={post.profile} size={42} />
+                </ProfileLink>
                 <div className="post-meta">
-                    <h3 id={`post-${post.id}-author`}>{authorName}</h3>
+                    <h3 id={`post-${post.id}-author`}>
+                        <ProfileLink profile={post.profile}>{authorName}</ProfileLink>
+                    </h3>
                     <time dateTime={post.created_at} title={formatFullDate(post.created_at)}>
                         {formatRelative(post.created_at)}
                     </time>
@@ -198,10 +203,12 @@ function PostCard({ post, myProfile, onToggleLike, onDelete, onCommentCountChang
                         <ul className="comment-list">
                             {comments.map((comment) => (
                                 <li key={comment.id} className="comment">
-                                    <Avatar profile={comment.profile} size={32} />
+                                    <ProfileLink profile={comment.profile} className="avatar-link" tabIndex={-1} aria-hidden="true">
+                                        <Avatar profile={comment.profile} size={32} />
+                                    </ProfileLink>
                                     <div className="comment-bubble">
                                         <div className="comment-head">
-                                            <strong>{nameOf(comment.profile)}</strong>
+                                            <strong><ProfileLink profile={comment.profile}>{nameOf(comment.profile)}</ProfileLink></strong>
                                             <time dateTime={comment.created_at} title={formatFullDate(comment.created_at)}>
                                                 {formatRelative(comment.created_at)}
                                             </time>

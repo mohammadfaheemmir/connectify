@@ -23,6 +23,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import Avatar from '../components/Avatar';
+import ProfileLink from '../components/ProfileLink';
 import {
     fetchConversations,
     fetchFriends,
@@ -566,8 +567,10 @@ function Messages() {
         if (messages.length === 0) {
             return (
                 <div className="chat-state chat-intro">
-                    <Avatar profile={selectedFriend} size={72} />
-                    <h3>{displayName(selectedFriend)}</h3>
+                    <ProfileLink profile={selectedFriend} className="avatar-link" tabIndex={-1} aria-hidden="true">
+                        <Avatar profile={selectedFriend} size={72} />
+                    </ProfileLink>
+                    <h3><ProfileLink profile={selectedFriend}>{displayName(selectedFriend)}</ProfileLink></h3>
                     {selectedFriend.username && (
                         <span className="chat-intro-handle">@{selectedFriend.username}</span>
                     )}
@@ -832,9 +835,11 @@ function Messages() {
                                     >
                                         <ArrowLeft size={20} />
                                     </button>
-                                    <Avatar profile={selectedFriend} size={40} />
+                                    <ProfileLink profile={selectedFriend} className="avatar-link" tabIndex={-1} aria-hidden="true">
+                                        <Avatar profile={selectedFriend} size={40} />
+                                    </ProfileLink>
                                     <div className="messages-chat-title">
-                                        <h2>{displayName(selectedFriend)}</h2>
+                                        <h2><ProfileLink profile={selectedFriend}>{displayName(selectedFriend)}</ProfileLink></h2>
                                         {selectedFriend.username && <span>@{selectedFriend.username}</span>}
                                     </div>
                                 </header>

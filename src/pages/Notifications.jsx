@@ -16,6 +16,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Sidebar from '../components/Sidebar'
 import Avatar from '../components/Avatar'
+import ProfileLink from '../components/ProfileLink'
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications'
 import {
     announceNotificationsChanged,
@@ -311,7 +312,13 @@ function Notifications() {
         return (
             <li key={item.id} className={`notif${unread ? ' unread' : ''}`}>
                 <div className="notif-avatar">
-                    <Avatar profile={item.actor} size={48} />
+                    <ProfileLink
+                        profile={item.actor}
+                        className="avatar-link"
+                        aria-label={`View ${actorName}’s profile`}
+                    >
+                        <Avatar profile={item.actor} size={48} />
+                    </ProfileLink>
                     <span className={`notif-type ${type.tone}`} aria-hidden="true">
                         <Icon size={12} strokeWidth={2.5} />
                     </span>
