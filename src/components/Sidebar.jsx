@@ -10,14 +10,19 @@ import {
     Settings,
     LogOut,
     Sparkles,
+    Sun,
+    Moon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
+import { useTheme } from '../hooks/useTheme';
 import './Sidebar.css';
 
 function Sidebar({ onLogout }) {
     const { user } = useAuth();
     const unreadNotifications = useUnreadNotifications(user?.id);
+    const { theme, toggle } = useTheme();
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
     const menuItems = [
         { name: 'Home', icon: Home, path: '/' },
         { name: 'Explore', icon: Compass, path: '/explore' },
@@ -68,6 +73,17 @@ function Sidebar({ onLogout }) {
             </nav>
 
             <div className="sidebar-bottom">
+                <button
+                    type="button"
+                    className="sidebar-link theme-toggle"
+                    onClick={toggle}
+                    aria-label={`Switch to ${nextTheme} mode`}
+                    title={`Switch to ${nextTheme} mode`}
+                >
+                    {theme === 'dark' ? <Sun size={20} aria-hidden="true" /> : <Moon size={20} aria-hidden="true" />}
+                    <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+                </button>
+
                 <button
                     type="button"
                     className="sidebar-link logout-link"

@@ -13,7 +13,7 @@
 }
 
 .auth-field label {
-    color: #d4d4df;
+    color: var(--text-2);
     font-size: 14px;
     font-weight: 600;
 }
@@ -25,10 +25,10 @@
     align-items: center;
     gap: 13px;
     padding: 0 16px;
-    border: 1px solid #303044;
+    border: 1px solid var(--border-strong);
     border-radius: 12px;
-    background: #1a1a28;
-    color: #9292a8;
+    background: var(--surface);
+    color: var(--text-muted);
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -46,14 +46,14 @@
     border: none;
     outline: none;
     background: transparent;
-    color: #ffffff;
+    color: var(--text);
     font-family: inherit;
     font-size: 15px;
     line-height: normal;
 }
 
 .auth-input-wrap input::placeholder {
-    color: #8e8ea3;
+    color: var(--text-faint);
     opacity: 1;
 }
 
@@ -68,17 +68,17 @@
     padding: 5px;
     border: none;
     background: transparent;
-    color: #9292a8;
+    color: var(--text-muted);
     cursor: pointer;
 }
 
 .password-toggle:hover {
-    color: #ffffff;
+    color: var(--text);
 }
 
 .auth-field small {
     font-size: 12px;
-    color: #8e8ea3;
+    color: var(--text-faint);
 }
 
 .auth-submit {
@@ -111,18 +111,18 @@
 }
 
 .auth-switch {
-    color: #a1a1b2;
+    color: var(--text-muted);
     font-size: 14px;
 }
 
 .auth-switch a {
-    color: #a78bfa;
+    color: var(--accent-text);
     font-weight: 700;
     text-decoration: none;
 }
 
 .auth-switch a:hover {
-    color: #c4b5fd;
+    color: var(--accent-text);
 }
 
 .auth-error,
@@ -134,13 +134,13 @@
 }
 
 .auth-error {
-    color: #fca5a5;
+    color: var(--danger-text);
     background: rgba(239, 68, 68, 0.10);
     border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .auth-success {
-    color: #86efac;
+    color: var(--success-text);
     background: rgba(34, 197, 94, 0.10);
     border: 1px solid rgba(34, 197, 94, 0.2);
 }
@@ -157,7 +157,7 @@
     padding: 0;
     border: none;
     background: none;
-    color: #b9a8ff;
+    color: var(--accent-text);
     font-size: 13px;
     font-weight: 600;
     text-decoration: none;
@@ -166,12 +166,12 @@
 
 .auth-label-row a:hover,
 .auth-text-button:hover:not(:disabled) {
-    color: #ddd6fe;
+    color: var(--accent-text);
     text-decoration: underline;
 }
 
 .auth-text-button:disabled {
-    color: #8e8ea3;
+    color: var(--text-faint);
     cursor: default;
 }
 
@@ -193,7 +193,7 @@
 .check-inbox a:focus-visible,
 .check-inbox button:focus-visible,
 .auth-provider:focus-visible {
-    outline: 2px solid #a78bfa;
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
 }
 
@@ -204,7 +204,7 @@
 
 .auth-error .auth-text-button,
 .auth-error a {
-    color: #fecaca;
+    color: var(--danger-text);
     text-decoration: underline;
 }
 
@@ -212,14 +212,14 @@
 .auth-secondary {
     width: 100%;
     min-height: 50px;
-    border: 1px solid #34344a;
+    border: 1px solid var(--border-strong);
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
     background: transparent;
-    color: #e4e3ee;
+    color: var(--text-2);
     font-size: 15px;
     font-weight: 650;
     text-decoration: none;
@@ -254,14 +254,14 @@
 .auth-provider {
     width: 100%;
     min-height: 52px;
-    border: 1px solid #34344a;
+    border: 1px solid var(--border-strong);
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 12px;
-    background: #1a1a28;
-    color: #ffffff;
+    background: var(--surface);
+    color: var(--text);
     font-size: 15px;
     font-weight: 650;
     cursor: pointer;
@@ -269,7 +269,7 @@
 }
 
 .auth-provider:hover:not(:disabled) {
-    border-color: #6b6b85;
+    border-color: var(--border-hover);
 }
 
 .auth-provider:disabled {
@@ -282,7 +282,7 @@
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     gap: 12px;
-    color: #8e8ea3;
+    color: var(--text-faint);
     font-size: 12px;
 }
 
@@ -290,7 +290,7 @@
 .auth-divider::after {
     content: "";
     height: 1px;
-    background: #2a2a3c;
+    background: var(--border);
 }
 
 /* --- Password checklist --- */
@@ -300,7 +300,7 @@
     flex-wrap: wrap;
     gap: 6px 16px;
     font-size: 12px;
-    color: #8e8ea3;
+    color: var(--text-faint);
 }
 
 .password-checklist li {
@@ -310,7 +310,7 @@
 }
 
 .password-checklist li.is-met {
-    color: #86efac;
+    color: var(--success-text);
 }
 
 .visually-hidden {
@@ -339,17 +339,17 @@
     justify-content: center;
     border-radius: 16px;
     background: rgba(167, 139, 250, 0.12);
-    color: #c4b5fd;
+    color: var(--accent-text);
 }
 
 .check-inbox-text {
     font-size: 15px;
     line-height: 1.6;
-    color: #d4d4df;
+    color: var(--text-2);
 }
 
 .check-inbox-text strong {
-    color: #ffffff;
+    color: var(--text);
     overflow-wrap: anywhere;
 }
 
@@ -361,7 +361,7 @@
 .check-inbox-status {
     font-size: 13px;
     line-height: 1.6;
-    color: #a1a1b2;
+    color: var(--text-muted);
 }
 
 .check-inbox-hint .auth-text-button {

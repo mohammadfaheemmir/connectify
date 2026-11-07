@@ -3,12 +3,13 @@
     width: 100%;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    background: #09090f;
-    color: #ffffff;
+    background: var(--bg);
+    color: var(--text);
     font-family: 'Inter Variable', Inter, system-ui, sans-serif;
 }
 
 .auth-brand {
+    color: #ffffff;
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -135,7 +136,7 @@
     padding: 50px 35px;
     background:
         radial-gradient(circle at 80% 10%, rgba(124, 58, 237, 0.10), transparent 40%),
-        #09090f;
+        var(--bg);
 }
 
 .auth-card {
@@ -143,9 +144,9 @@
     max-width: 470px;
     padding: 42px;
     border-radius: 26px;
-    background: #13131e;
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.35);
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    box-shadow: 0 25px 80px var(--shadow-soft);
 }
 
 .auth-heading h2 {
@@ -158,7 +159,7 @@
 .auth-heading p {
     font-size: 14px;
     line-height: 1.7;
-    color: #9999aa;
+    color: var(--text-muted);
     margin: 0;
 }
 
@@ -172,7 +173,7 @@
 }
 
 .auth-legal {
-    color: #8a889c;
+    color: var(--text-faint);
     font-size: 12px;
     text-align: center;
     margin-top: 25px;
@@ -184,13 +185,13 @@
 }
 
 .auth-legal a {
-    color: #b9b7c9;
+    color: var(--text-2);
     text-decoration: underline;
     text-underline-offset: 2px;
 }
 
 .auth-legal a:hover {
-    color: #ffffff;
+    color: var(--text);
 }
 
 .mobile-brand {
@@ -207,7 +208,7 @@
 .sk {
     display: block;
     border-radius: 10px;
-    background-color: #1a1a27;
+    background-color: var(--skeleton);
     animation: sk-shimmer 1.4s ease-in-out infinite;
 }
 
@@ -217,9 +218,9 @@
 .sk-button { height: 54px; margin-top: 6px; }
 
 @keyframes sk-shimmer {
-    0% { background-color: #1a1a27; }
-    50% { background-color: #222232; }
-    100% { background-color: #1a1a27; }
+    0% { background-color: var(--skeleton); }
+    50% { background-color: var(--skeleton-hi); }
+    100% { background-color: var(--skeleton); }
 }
 
 @media (max-width: 1050px) {
@@ -266,22 +267,22 @@
         gap: 10px;
         font-size: 22px;
         font-weight: 750;
-        color: #c4b5fd;
+        color: var(--accent-text);
     }
 
     .mobile-brand-logo svg {
-        color: #a78bfa;
+        color: var(--accent-text);
     }
 
     .mobile-brand-tagline {
         font-size: 15px;
         font-weight: 600;
-        color: #e4e3ee;
+        color: var(--text-2);
     }
 
     .mobile-brand-proof {
         font-size: 13px;
-        color: #a5a3b8;
+        color: var(--text-muted);
     }
 
     .auth-card {

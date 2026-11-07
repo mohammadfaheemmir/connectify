@@ -5,8 +5,8 @@
     width: 100%;
     min-width: 0;
     display: flex;
-    background: #09090f;
-    color: #f4f4f5;
+    background: var(--bg);
+    color: var(--text);
 }
 
 .notifications-layout > .sidebar {
@@ -105,9 +105,9 @@
     flex-shrink: 0;
     min-height: 38px;
     padding: 0 16px;
-    color: #b4b2c6;
-    background: #14141f;
-    border: 1px solid #2a2a3d;
+    color: var(--text-muted);
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
     border-radius: 999px;
     font-size: 14px;
     font-weight: 600;
@@ -116,8 +116,8 @@
 }
 
 .notif-filter:hover {
-    color: #ffffff;
-    border-color: #4a4a66;
+    color: var(--text);
+    border-color: var(--border-hover);
 }
 
 .notif-filter.active {
@@ -134,9 +134,9 @@
     gap: 7px;
     min-height: 38px;
     padding: 0 14px;
-    color: #e4e3ee;
+    color: var(--text-2);
     background: transparent;
-    border: 1px solid #34344a;
+    border: 1px solid var(--border-strong);
     border-radius: 10px;
     font-size: 14px;
     font-weight: 600;
@@ -167,7 +167,7 @@
 
 .notifications-layout a:focus-visible,
 .notifications-layout button:focus-visible {
-    outline: 2px solid #a78bfa;
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
 }
 
@@ -181,7 +181,7 @@
 
 .notif-group-title {
     margin: 0 0 8px 4px;
-    color: #a1a1b2;
+    color: var(--text-muted);
     font-size: 13px;
     font-weight: 650;
     letter-spacing: 0.3px;
@@ -194,8 +194,8 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    background: #13131e;
-    border: 1px solid #252536;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
     border-radius: 18px;
 }
 
@@ -210,7 +210,7 @@
 }
 
 .notif:hover {
-    background: #181826;
+    background: var(--surface-hover);
 }
 
 .notif.unread {
@@ -237,12 +237,12 @@
     display: grid;
     place-items: center;
     border-radius: 50%;
-    border: 2px solid #13131e;
+    border: 2px solid var(--bg-raised);
     color: #ffffff;
 }
 
 .notif.unread .notif-type {
-    border-color: #1a1530;
+    border-color: var(--unread-bg);
 }
 
 .notif-type.like { background: #db2777; }
@@ -261,7 +261,7 @@
 
 .notif-text {
     margin: 0;
-    color: #c9c8d6;
+    color: var(--text-2);
     font-size: 15px;
     line-height: 1.45;
     text-decoration: none;
@@ -269,7 +269,7 @@
 }
 
 a.notif-text:hover {
-    color: #ffffff;
+    color: var(--text);
 }
 
 a.notif-text::after {
@@ -281,21 +281,21 @@ a.notif-text::after {
 }
 
 .notif-text strong {
-    color: #ffffff;
+    color: var(--text);
     font-weight: 650;
 }
 
 .notif.unread .notif-text {
-    color: #e9e8f2;
+    color: var(--text);
 }
 
 .notif-body time {
-    color: #9a9aac;
+    color: var(--text-muted);
     font-size: 13px;
 }
 
 .notif.unread .notif-body time {
-    color: #c4b5fd;
+    color: var(--accent-text);
     font-weight: 600;
 }
 
@@ -314,15 +314,15 @@ a.notif-text::after {
     align-items: center;
     min-height: 30px;
     padding: 0 12px;
-    color: #b4b2c6;
-    background: #1f1f2e;
+    color: var(--text-muted);
+    background: var(--surface-hover);
     border-radius: 999px;
     font-size: 13px;
     font-weight: 600;
 }
 
 .notif-chip.success {
-    color: #86efac;
+    color: var(--success-text);
     background: rgba(34, 197, 94, 0.12);
 }
 
@@ -380,16 +380,16 @@ a.notif-text::after {
     align-items: center;
     gap: 10px;
     padding: 52px 24px;
-    color: #a1a1b2;
+    color: var(--text-muted);
     text-align: center;
-    background: #13131e;
-    border: 1px dashed #2f2f45;
+    background: var(--bg-raised);
+    border: 1px dashed var(--border-strong);
     border-radius: 18px;
 }
 
 .notif-state h2 {
     margin: 0;
-    color: #f4f4f5;
+    color: var(--text);
     font-size: 19px;
 }
 
@@ -406,8 +406,8 @@ a.notif-text::after {
     width: 64px;
     height: 64px;
     margin-bottom: 4px;
-    color: #c4b5fd;
-    background: #29213f;
+    color: var(--accent-text);
+    background: var(--accent-soft);
     border-radius: 50%;
 }
 
@@ -418,7 +418,7 @@ a.notif-text::after {
 .skel {
     display: block;
     border-radius: 8px;
-    background: #1c1c2a;
+    background: var(--skeleton);
     animation: notif-pulse 1.4s ease-in-out infinite;
 }
 
@@ -440,7 +440,7 @@ a.notif-text::after {
 .skel-line.short { width: 22%; }
 
 @keyframes notif-pulse {
-    50% { background: #262636; }
+    50% { background: var(--skeleton-hi); }
 }
 
 .spin {
@@ -491,7 +491,7 @@ a.notif-text::after {
         flex: none;
         padding: 12px;
         border-right: none;
-        border-bottom: 1px solid #222231;
+        border-bottom: 1px solid var(--border);
     }
 
     .notifications-layout .sidebar-logo {

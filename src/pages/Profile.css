@@ -5,8 +5,8 @@
     width: 100%;
     min-width: 0;
     display: flex;
-    background: #09090f;
-    color: #f4f4f5;
+    background: var(--bg);
+    color: var(--text);
 }
 
 .profile-layout > .sidebar {
@@ -60,7 +60,7 @@
 .post-viewer a:focus-visible,
 .post-viewer input:focus-visible,
 .edit-panel button:focus-visible {
-    outline: 2px solid #a78bfa;
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
 }
 
@@ -74,9 +74,9 @@
     gap: 8px;
     min-height: 42px;
     padding: 0 16px;
-    color: #e4e3ee;
-    background: #191927;
-    border: 1px solid #34344a;
+    color: var(--text-2);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
     border-radius: 11px;
     font-size: 14px;
     font-weight: 650;
@@ -124,7 +124,7 @@
     gap: 7px;
     min-height: 42px;
     padding: 0 14px;
-    color: #c4b5fd;
+    color: var(--accent-text);
     background: rgba(124, 58, 237, 0.12);
     border-radius: 11px;
     font-size: 14px;
@@ -148,6 +148,13 @@
         #1a1530;
 }
 
+:root[data-theme='light'] .pf-cover {
+    background:
+        radial-gradient(ellipse at 20% 30%, rgba(168, 85, 247, 0.35), transparent 55%),
+        radial-gradient(ellipse at 85% 80%, rgba(59, 130, 246, 0.3), transparent 55%),
+        #ece6fb;
+}
+
 .pf-head {
     position: relative;
     display: grid;
@@ -168,7 +175,7 @@
     height: 128px;
     padding: 4px;
     border-radius: 50%;
-    background: #09090f;
+    background: var(--bg);
 }
 
 .pf-avatar {
@@ -200,7 +207,7 @@
     padding: 0;
     color: #ffffff;
     background: #7c3aed;
-    border: 3px solid #09090f;
+    border: 3px solid var(--bg);
     border-radius: 50%;
     cursor: pointer;
 }
@@ -216,10 +223,10 @@
     z-index: 20;
     min-width: 200px;
     padding: 6px;
-    background: #1b1b29;
-    border: 1px solid #343448;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
     border-radius: 12px;
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 14px 34px var(--shadow-strong);
 }
 
 .pf-menu button {
@@ -228,7 +235,7 @@
     align-items: center;
     gap: 10px;
     padding: 10px 12px;
-    color: #e4e3ee;
+    color: var(--text-2);
     background: transparent;
     border: none;
     border-radius: 8px;
@@ -238,11 +245,11 @@
 }
 
 .pf-menu button:hover {
-    background: #26263a;
+    background: var(--surface-hover);
 }
 
 .pf-menu button.danger {
-    color: #fca5a5;
+    color: var(--danger-text);
 }
 
 .pf-identity {
@@ -262,14 +269,14 @@
 
 .pf-handle {
     margin: 2px 0 0;
-    color: #a1a1b2;
+    color: var(--text-muted);
     font-size: 15px;
 }
 
 .pf-bio {
     max-width: 60ch;
     margin: 10px 0 0;
-    color: #e4e3ee;
+    color: var(--text-2);
     font-size: 15px;
     line-height: 1.55;
     white-space: pre-wrap;
@@ -278,7 +285,7 @@
 
 .pf-joined {
     margin: 8px 0 0;
-    color: #8e8ea3;
+    color: var(--text-faint);
     font-size: 13px;
 }
 
@@ -306,7 +313,7 @@
 }
 
 .pf-stats dt {
-    color: #9a9aac;
+    color: var(--text-muted);
     font-size: 13px;
 }
 
@@ -323,7 +330,7 @@
 }
 
 .pf-stats dd a:hover {
-    color: #c4b5fd;
+    color: var(--accent-text);
 }
 
 /* ---------- Setup card ---------- */
@@ -342,7 +349,7 @@
 
 .pf-setup p {
     margin: 4px 0 12px;
-    color: #c4c1d9;
+    color: var(--text-2);
     font-size: 14px;
 }
 
@@ -379,7 +386,7 @@
 }
 
 .pf-setup li.done span {
-    color: #86efac;
+    color: var(--success-text);
     background: rgba(34, 197, 94, 0.12);
 }
 
@@ -388,7 +395,7 @@
 .pf-posts h2 {
     margin: 0 0 12px;
     padding-top: 18px;
-    border-top: 1px solid #222231;
+    border-top: 1px solid var(--border);
     font-size: 16px;
 }
 
@@ -408,7 +415,7 @@
     aspect-ratio: 1;
     padding: 0;
     overflow: hidden;
-    background: #14141f;
+    background: var(--bg-raised);
     border: none;
     border-radius: 10px;
     cursor: pointer;
@@ -489,10 +496,10 @@
     align-items: center;
     gap: 10px;
     padding: 44px 20px;
-    color: #a1a1b2;
+    color: var(--text-muted);
     text-align: center;
-    background: #13131e;
-    border: 1px dashed #2f2f45;
+    background: var(--bg-raised);
+    border: 1px dashed var(--border-strong);
     border-radius: 16px;
 }
 
@@ -503,7 +510,7 @@
 .pf-empty h1,
 .pf-empty h3 {
     margin: 0;
-    color: #f4f4f5;
+    color: var(--text);
     font-size: 19px;
 }
 
@@ -519,8 +526,8 @@
     place-items: center;
     width: 60px;
     height: 60px;
-    color: #c4b5fd;
-    background: #29213f;
+    color: var(--accent-text);
+    background: var(--accent-soft);
     border-radius: 50%;
 }
 
@@ -528,7 +535,7 @@
 
 .skel {
     display: block;
-    background: #1c1c2a;
+    background: var(--skeleton);
     border-radius: 8px;
     animation: pf-pulse 1.4s ease-in-out infinite;
 }
@@ -538,7 +545,7 @@
     width: 128px;
     height: 128px;
     border-radius: 50%;
-    border: 4px solid #09090f;
+    border: 4px solid var(--bg);
 }
 
 .skel-line {
@@ -556,7 +563,7 @@
 }
 
 @keyframes pf-pulse {
-    50% { background: #262636; }
+    50% { background: var(--skeleton-hi); }
 }
 
 .spin {
@@ -625,13 +632,13 @@
     max-height: none;
     padding: 0;
     overflow: visible;
-    color: #f4f4f5;
+    color: var(--text);
     background: transparent;
     border: none;
 }
 
 .post-viewer::backdrop {
-    background: rgba(5, 5, 10, 0.82);
+    background: var(--backdrop-strong);
 }
 
 .viewer-body {
@@ -639,8 +646,8 @@
     grid-template-columns: minmax(0, 1fr) 360px;
     height: 100%;
     overflow: hidden;
-    background: #13131e;
-    border: 1px solid #2a2a3d;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
     border-radius: 18px;
 }
 
@@ -648,7 +655,7 @@
     display: grid;
     place-items: center;
     min-height: 0;
-    background: #07070c;
+    background: var(--media-bg);
 }
 
 .viewer-media img {
@@ -658,6 +665,7 @@
 }
 
 .viewer-media.text-only {
+    color: #f4f4f5;
     padding: 40px;
     background: linear-gradient(135deg, #2a1f4d, #1a2442);
 }
@@ -676,7 +684,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    border-left: 1px solid #23233a;
+    border-left: 1px solid var(--border);
 }
 
 .viewer-head {
@@ -684,7 +692,7 @@
     align-items: center;
     gap: 10px;
     padding: 14px 16px;
-    border-bottom: 1px solid #23233a;
+    border-bottom: 1px solid var(--border);
 }
 
 .viewer-head-text {
@@ -697,7 +705,7 @@
 .viewer-head-text a,
 .viewer-head-text strong {
     overflow: hidden;
-    color: #ffffff;
+    color: var(--text);
     font-size: 14px;
     font-weight: 650;
     text-decoration: none;
@@ -710,7 +718,7 @@
 }
 
 .viewer-head-text time {
-    color: #9a9aac;
+    color: var(--text-muted);
     font-size: 12px;
 }
 
@@ -720,7 +728,7 @@
     width: 38px;
     height: 38px;
     padding: 0;
-    color: #a1a1b2;
+    color: var(--text-muted);
     background: transparent;
     border: none;
     border-radius: 10px;
@@ -728,12 +736,12 @@
 }
 
 .viewer-icon:hover {
-    color: #ffffff;
-    background: #1f1f2e;
+    color: var(--text);
+    background: var(--surface-hover);
 }
 
 .viewer-icon.danger:hover {
-    color: #fca5a5;
+    color: var(--danger-text);
 }
 
 .viewer-icon.small {
@@ -767,7 +775,7 @@
 .viewer-caption {
     margin: 0 0 14px;
     padding-bottom: 14px;
-    border-bottom: 1px solid #23233a;
+    border-bottom: 1px solid var(--border);
     font-size: 14px;
     line-height: 1.55;
     white-space: pre-wrap;
@@ -779,7 +787,7 @@
     align-items: center;
     gap: 8px;
     margin: 0;
-    color: #a1a1b2;
+    color: var(--text-muted);
     font-size: 14px;
 }
 
@@ -811,7 +819,7 @@
 }
 
 .viewer-comments time {
-    color: #9a9aac;
+    color: var(--text-muted);
     font-size: 12px;
 }
 
@@ -820,7 +828,7 @@
     align-items: center;
     gap: 14px;
     padding: 8px 12px;
-    border-top: 1px solid #23233a;
+    border-top: 1px solid var(--border);
 }
 
 .viewer-like {
@@ -829,7 +837,7 @@
     gap: 8px;
     min-height: 40px;
     padding: 0 10px;
-    color: #c9c8d6;
+    color: var(--text-2);
     background: transparent;
     border: none;
     border-radius: 10px;
@@ -839,18 +847,18 @@
 }
 
 .viewer-like:hover {
-    background: #1f1f2e;
+    background: var(--surface-hover);
 }
 
 .viewer-like.liked {
-    color: #f472b6;
+    color: var(--like);
 }
 
 .viewer-count {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: #a1a1b2;
+    color: var(--text-muted);
     font-size: 14px;
 }
 
@@ -858,7 +866,7 @@
     display: flex;
     gap: 8px;
     padding: 10px 12px 12px;
-    border-top: 1px solid #23233a;
+    border-top: 1px solid var(--border);
 }
 
 .viewer-comment-form input {
@@ -866,9 +874,9 @@
     min-width: 0;
     height: 40px;
     padding: 0 14px;
-    color: #f4f4f5;
-    background: #1a1a28;
-    border: 1px solid #2c2c40;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
     border-radius: 999px;
     outline: none;
     font-size: 14px;
@@ -940,15 +948,15 @@
 .edit-panel {
     width: min(480px, calc(100vw - 32px));
     padding: 0;
-    color: #f4f4f5;
-    background: #16161f;
-    border: 1px solid #343448;
+    color: var(--text);
+    background: var(--bg-dialog);
+    border: 1px solid var(--border-strong);
     border-radius: 18px;
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 30px 80px var(--shadow-strong);
 }
 
 .edit-panel::backdrop {
-    background: rgba(5, 5, 10, 0.72);
+    background: var(--backdrop);
 }
 
 .edit-panel-form {
@@ -975,7 +983,7 @@
     width: 38px;
     height: 38px;
     padding: 0;
-    color: #a1a1b2;
+    color: var(--text-muted);
     background: transparent;
     border: none;
     border-radius: 10px;
@@ -983,8 +991,8 @@
 }
 
 .ep-icon:hover {
-    color: #ffffff;
-    background: #1f1f2e;
+    color: var(--text);
+    background: var(--surface-hover);
 }
 
 .ep-field {
@@ -1000,7 +1008,7 @@
 }
 
 .ep-field label {
-    color: #d4d4df;
+    color: var(--text-2);
     font-size: 14px;
     font-weight: 600;
 }
@@ -1009,9 +1017,9 @@
 .ep-field textarea {
     width: 100%;
     padding: 11px 13px;
-    color: #f4f4f5;
-    background: #1a1a28;
-    border: 1px solid #303044;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
     border-radius: 11px;
     outline: none;
     font-size: 15px;
@@ -1034,10 +1042,10 @@
     align-items: center;
     gap: 6px;
     padding: 0 13px;
-    background: #1a1a28;
-    border: 1px solid #303044;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
     border-radius: 11px;
-    color: #8e8ea3;
+    color: var(--text-faint);
 }
 
 .ep-prefixed.invalid {
@@ -1052,37 +1060,37 @@
 }
 
 .ep-good {
-    color: #86efac;
+    color: var(--success-text);
 }
 
 .ep-hint {
     margin: 0;
-    color: #9a9aac;
+    color: var(--text-muted);
     font-size: 13px;
 }
 
 .ep-hint.bad {
-    color: #fca5a5;
+    color: var(--danger-text);
 }
 
 .ep-hint.good {
-    color: #86efac;
+    color: var(--success-text);
 }
 
 .ep-count {
-    color: #9a9aac;
+    color: var(--text-muted);
     font-size: 12px;
     font-variant-numeric: tabular-nums;
 }
 
 .ep-count.over {
-    color: #fca5a5;
+    color: var(--danger-text);
 }
 
 .ep-error {
     margin: 0;
     padding: 10px 12px;
-    color: #fca5a5;
+    color: var(--danger-text);
     background: rgba(239, 68, 68, 0.1);
     border: 1px solid rgba(239, 68, 68, 0.22);
     border-radius: 10px;
@@ -1099,7 +1107,7 @@
 .ep-actions.discard p {
     margin: 0 auto 0 0;
     font-size: 14px;
-    color: #fca5a5;
+    color: var(--danger-text);
 }
 
 /* ---------- Tablet: sidebar becomes a top bar ---------- */
@@ -1118,7 +1126,7 @@
         flex: none;
         padding: 12px;
         border-right: none;
-        border-bottom: 1px solid #222231;
+        border-bottom: 1px solid var(--border);
     }
 
     .profile-layout .sidebar-logo {
@@ -1172,7 +1180,7 @@
 
     .viewer-side {
         border-left: none;
-        border-top: 1px solid #23233a;
+        border-top: 1px solid var(--border);
     }
 
     .viewer-nav {
@@ -1232,8 +1240,8 @@
     .pf-stats {
         justify-content: space-around;
         padding: 12px 0;
-        border-top: 1px solid #222231;
-        border-bottom: 1px solid #222231;
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
         text-align: center;
     }
 
