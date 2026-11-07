@@ -46,7 +46,7 @@ function Home() {
     const composerOpenRef = useRef(null)
     const location = useLocation()
     const navigate = useNavigate()
-    const composeRequest = location.state?.compose
+    const composeRequest = location.state?.compose || new URLSearchParams(location.search).get('compose')
 
     // The Create tab on phones opens the composer here.
     useEffect(() => {

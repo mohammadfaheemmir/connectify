@@ -10,6 +10,11 @@ import {
     LoaderCircle,
     LogOut,
     Mail,
+    CircleCheck,
+    Download,
+    Share,
+    Smartphone,
+    SquarePlus,
     Monitor,
     Moon,
     Palette,
@@ -28,6 +33,7 @@ import EditProfilePanel from '../components/EditProfilePanel'
 import PasswordChecklist from '../components/PasswordChecklist'
 import { useCaptcha } from '../components/useCaptcha'
 import { useTheme } from '../hooks/useTheme'
+import { useInstall } from '../hooks/useInstall'
 import { fetchOwnProfile } from '../lib/profileApi'
 import { MIN_PASSWORD_LENGTH, isPasswordAcceptable } from '../lib/password'
 import {
@@ -106,6 +112,8 @@ function Settings() {
 
     const [profile, setProfile] = useState(null)
     const { preference, theme, setPreference } = useTheme()
+    const app = useInstall()
+    const [installing, setInstalling] = useState(false)
     const [status, setStatus] = useState('loading')
     const [reloadKey, setReloadKey] = useState(0)
     const [editing, setEditing] = useState(false)
@@ -363,6 +371,56 @@ function Settings() {
                     </div>
                     {preference === 'system' && (
                         <p className="st-hint">Your device is using {theme} mode right now.</p>
+                    )}
+                </section>
+
+                {/* Install app */}
+                <section className="st-card" aria-labelledby="st-app">
+                    <div className="st-card-head">
+                        <Smartphone size={20} aria-hidden="true" />
+                        <h2 id="st-app">Connectify app</h2>
+                    </div>
+                    {app.installed ? (
+                        <p className="st-app-done">
+                            <CircleCheck size={18} aria-hidden="true" /> Connectify is installed on this device.
+                        </p>
+                    ) : app.canPrompt ? (
+                        <div className="st-row">
+                            <p className="st-hint">
+                                Install Connectify to open it from your home screen or dock, full-screen, like any other app.
+                            </p>
+                            <button
+                                type="button"
+                                className="st-button primary"
+                                disabled={installing}
+                                onClick={async () => {
+                                    setInstalling(true)
+                                    const outcome = await app.install()
+                                    setInstalling(false)
+                                    if (outcome === 'accepted') showToast('Connectify is being installed.')
+                                }}
+                            >
+                                <Download size={16} aria-hidden="true" /> Install app
+                            </button>
+                        </div>
+                    ) : app.ios ? (
+                        <div className="st-app-steps">
+                            <p className="st-hint">Add Connectify to your home screen to use it like an app:</p>
+                            <ol>
+                                <li>
+                                    In Safari, tap <span className="st-app-key"><Share size={15} aria-hidden="true" /> Share</span>
+                                </li>
+                                <li>
+                                    Choose <span className="st-app-key"><SquarePlus size={15} aria-hidden="true" /> Add to Home Screen</span>
+                                </li>
+                                <li>Tap <strong>Add</strong></li>
+                            </ol>
+                        </div>
+                    ) : (
+                        <p className="st-hint">
+                            To install Connectify, open your browser’s menu and choose “Install Connectify” or
+                            “Add to Home screen”. Chrome, Edge and Samsung Internet support this; some other browsers don’t.
+                        </p>
                     )}
                 </section>
 
