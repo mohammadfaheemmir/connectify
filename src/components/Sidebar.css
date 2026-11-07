@@ -32,7 +32,7 @@
         height: 18px;
         padding: 0 4px;
         font-size: 10px;
-        border: 2px solid #10101a;
+        border: 2px solid var(--bg-sidebar);
     }
 }
 
@@ -46,6 +46,32 @@
         height: 18px;
         padding: 0 4px;
         font-size: 10px;
-        border: 2px solid #10101a;
+        border: 2px solid var(--bg-sidebar);
+    }
+}
+
+/* When the sidebar is a top bar, put the theme toggle and Logout side by
+   side instead of stacking them. */
+@media (max-width: 900px) {
+    :not(.home-layout) > .sidebar .sidebar-bottom {
+        flex-direction: row;
+        gap: 8px;
+    }
+
+    :not(.home-layout) > .sidebar .sidebar-bottom .sidebar-link {
+        flex: 1;
+        width: auto;
+    }
+}
+
+@media (max-width: 700px) {
+    .sidebar .sidebar-bottom {
+        flex-direction: row;
+        gap: 8px;
+    }
+
+    .sidebar .sidebar-bottom .sidebar-link {
+        flex: 1;
+        width: auto;
     }
 }

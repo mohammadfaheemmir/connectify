@@ -5,8 +5,8 @@
     width: 100%;
     min-width: 0;
     display: flex;
-    background: #09090f;
-    color: #f4f4f5;
+    background: var(--bg);
+    color: var(--text);
 }
 
 .explore-layout > .sidebar {
@@ -32,7 +32,7 @@
 .explore-layout a:focus-visible,
 .explore-layout button:focus-visible,
 .explore-layout input:focus-visible {
-    outline: 2px solid #a78bfa;
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
 }
 
@@ -60,9 +60,9 @@
     gap: 10px;
     height: 48px;
     padding: 0 10px 0 16px;
-    color: #8e8ea3;
-    background: #14141f;
-    border: 1px solid #2c2c40;
+    color: var(--text-faint);
+    background: var(--bg-raised);
+    border: 1px solid var(--border-strong);
     border-radius: 14px;
     transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -76,7 +76,7 @@
     flex: 1;
     min-width: 0;
     height: 100%;
-    color: #f4f4f5;
+    color: var(--text);
     background: transparent;
     border: none;
     outline: none;
@@ -84,7 +84,7 @@
 }
 
 .ex-search input::placeholder {
-    color: #8e8ea3;
+    color: var(--text-faint);
 }
 
 .ex-search input::-webkit-search-cancel-button {
@@ -101,7 +101,7 @@
     width: 32px;
     height: 32px;
     padding: 0;
-    color: #a1a1b2;
+    color: var(--text-muted);
     background: transparent;
     border: none;
     border-radius: 9px;
@@ -109,8 +109,8 @@
 }
 
 .ex-search-clear:hover {
-    color: #ffffff;
-    background: #222233;
+    color: var(--text);
+    background: var(--surface-hover);
 }
 
 /* ---------- Tabs ---------- */
@@ -127,9 +127,9 @@
     gap: 7px;
     min-height: 40px;
     padding: 0 16px;
-    color: #b4b2c6;
-    background: #14141f;
-    border: 1px solid #2a2a3d;
+    color: var(--text-muted);
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
     border-radius: 999px;
     font-size: 14px;
     font-weight: 650;
@@ -138,8 +138,8 @@
 }
 
 .ex-tab:hover {
-    color: #ffffff;
-    border-color: #4a4a66;
+    color: var(--text);
+    border-color: var(--border-hover);
 }
 
 .ex-tab.active {
@@ -166,7 +166,7 @@
     aspect-ratio: 1;
     padding: 0;
     overflow: hidden;
-    background: #14141f;
+    background: var(--bg-raised);
     border: none;
     border-radius: 12px;
     cursor: pointer;
@@ -263,12 +263,12 @@
 
 .ex-tile.skel {
     cursor: default;
-    background: #1a1a27;
+    background: var(--skeleton);
     animation: ex-pulse 1.4s ease-in-out infinite;
 }
 
 @keyframes ex-pulse {
-    50% { background: #242434; }
+    50% { background: var(--skeleton-hi); }
 }
 
 .ex-more {
@@ -279,7 +279,7 @@
 
 .ex-end {
     margin: 22px 0 0;
-    color: #8e8ea3;
+    color: var(--text-faint);
     font-size: 14px;
     text-align: center;
 }
@@ -294,7 +294,7 @@
 
 .ex-section-title {
     margin: 0 0 12px;
-    color: #c9c8d6;
+    color: var(--text-2);
     font-size: 15px;
     font-weight: 650;
 }
@@ -313,17 +313,17 @@
     align-items: center;
     gap: 12px;
     padding: 12px 14px;
-    color: #f4f4f5;
+    color: var(--text);
     text-decoration: none;
-    background: #13131e;
-    border: 1px solid #252536;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
     border-radius: 14px;
     transition: border-color 0.15s, background 0.15s;
 }
 
 .ex-person:hover {
     border-color: #8b5cf6;
-    background: #171726;
+    background: var(--surface-hover);
 }
 
 .ex-person-text {
@@ -345,7 +345,7 @@
 }
 
 .ex-person-text span {
-    color: #a1a1b2;
+    color: var(--text-muted);
     font-size: 13px;
 }
 
@@ -358,9 +358,9 @@
     gap: 8px;
     min-height: 42px;
     padding: 0 16px;
-    color: #e4e3ee;
-    background: #191927;
-    border: 1px solid #34344a;
+    color: var(--text-2);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
     border-radius: 11px;
     font-size: 14px;
     font-weight: 650;
@@ -389,16 +389,16 @@
     align-items: center;
     gap: 10px;
     padding: 52px 20px;
-    color: #a1a1b2;
+    color: var(--text-muted);
     text-align: center;
-    background: #13131e;
-    border: 1px dashed #2f2f45;
+    background: var(--bg-raised);
+    border: 1px dashed var(--border-strong);
     border-radius: 16px;
 }
 
 .ex-empty h2 {
     margin: 0;
-    color: #f4f4f5;
+    color: var(--text);
     font-size: 18px;
 }
 
@@ -414,8 +414,8 @@
     place-items: center;
     width: 60px;
     height: 60px;
-    color: #c4b5fd;
-    background: #29213f;
+    color: var(--accent-text);
+    background: var(--accent-soft);
     border-radius: 50%;
 }
 
@@ -466,7 +466,7 @@
         flex: none;
         padding: 12px;
         border-right: none;
-        border-bottom: 1px solid #222231;
+        border-bottom: 1px solid var(--border);
     }
 
     .explore-layout .sidebar-logo {

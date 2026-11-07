@@ -1,0 +1,109 @@
+/* Connectify colour tokens.
+   Dark is the default; [data-theme="light"] on <html> switches palettes.
+   The theme is chosen in Settings (System / Light / Dark) and applied by
+   an inline script in index.html before the first paint. */
+
+:root {
+    color-scheme: dark;
+
+    /* Surfaces */
+    --bg: #09090f;
+    --bg-sidebar: #10101a;
+    --bg-raised: #13131e;
+    --bg-dialog: #16161f;
+    --surface: #1a1a28;
+    --surface-hover: #1f1f2e;
+    --selected: #262240;
+    --unread-bg: #1a1530;
+    --media-bg: #0d0d14;
+    --header-bg: rgba(9, 9, 15, 0.86);
+
+    /* Lines */
+    --border: #252536;
+    --border-strong: #34344a;
+    --border-hover: #4a4a66;
+
+    /* Text */
+    --text: #f4f4f5;
+    --text-2: #d4d4df;
+    --text-muted: #a1a1b2;
+    --text-faint: #8e8ea3;
+
+    /* Accent (violet) */
+    --accent: #7c3aed;
+    --accent-hover: #6d28d9;
+    --accent-border: #8b5cf6;
+    --accent-text: #c4b5fd;
+    --accent-soft: #29213f;
+    --focus: #a78bfa;
+
+    /* Status */
+    --danger-text: #fca5a5;
+    --success-text: #86efac;
+    --like: #f472b6;
+
+    /* Chat */
+    --bubble-theirs: #24243a;
+
+    /* Loading placeholders */
+    --skeleton: #1c1c2a;
+    --skeleton-hi: #262636;
+
+    /* Shadows and backdrops */
+    --shadow-soft: rgba(0, 0, 0, 0.35);
+    --shadow-strong: rgba(0, 0, 0, 0.45);
+    --backdrop: rgba(5, 5, 10, 0.72);
+    --backdrop-strong: rgba(5, 5, 10, 0.82);
+}
+
+:root[data-theme='light'] {
+    color-scheme: light;
+
+    --bg: #f6f5fb;
+    --bg-sidebar: #ffffff;
+    --bg-raised: #ffffff;
+    --bg-dialog: #ffffff;
+    --surface: #f3f2f8;
+    --surface-hover: #ebe9f3;
+    --selected: #ede7fe;
+    --unread-bg: #f4effe;
+    --media-bg: #ecebf2;
+    --header-bg: rgba(246, 245, 251, 0.88);
+
+    --border: #e5e3ee;
+    --border-strong: #d5d2e2;
+    --border-hover: #b9b4cf;
+
+    --text: #17151f;
+    --text-2: #3b3848;
+    --text-muted: #5f5b72;
+    --text-faint: #66627a;
+
+    --accent: #7c3aed;
+    --accent-hover: #6d28d9;
+    --accent-border: #8b5cf6;
+    --accent-text: #6d28d9;
+    --accent-soft: #ede9fe;
+    --focus: #7c3aed;
+
+    --danger-text: #b91c1c;
+    --success-text: #166534;
+    --like: #be185d;
+
+    --bubble-theirs: #ecebf3;
+
+    --skeleton: #ebe9f2;
+    --skeleton-hi: #f4f3f9;
+
+    --shadow-soft: rgba(40, 30, 80, 0.1);
+    --shadow-strong: rgba(40, 30, 80, 0.16);
+    --backdrop: rgba(24, 20, 40, 0.45);
+    --backdrop-strong: rgba(14, 12, 24, 0.82);
+}
+
+/* Avoid every element animating its colour while the theme switches. */
+:root.theme-switching *,
+:root.theme-switching *::before,
+:root.theme-switching *::after {
+    transition: none !important;
+}

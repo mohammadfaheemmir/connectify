@@ -19,8 +19,8 @@ body {
   min-width: 320px;
   min-height: 100vh;
   font-family: 'Inter Variable', Inter, system-ui, sans-serif;
-  background-color: #030712;
-  color: #ffffff;
+  background-color: var(--bg);
+  color: var(--text);
   overflow-x: hidden;
 }
 
@@ -82,7 +82,7 @@ span {
         width: 100%;
         margin-top: 10px;
         padding: 8px 0 0;
-        border-top: 1px solid #292938;
+        border-top: 1px solid var(--border);
     }
 
     .home-layout .logout-link,
@@ -105,15 +105,15 @@ span {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #09090f;
-  color: #a1a1b2;
+  background: var(--bg);
+  color: var(--text-muted);
 }
 
 .app-spinner {
   width: 28px;
   height: 28px;
-  border: 3px solid #2a2a3c;
-  border-top-color: #a78bfa;
+  border: 3px solid var(--border);
+  border-top-color: var(--focus);
   border-radius: 50%;
   animation: app-spin 0.8s linear infinite;
 }
@@ -137,7 +137,7 @@ span {
 }
 
 .profile-link:focus-visible {
-  outline: 2px solid #a78bfa;
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
   border-radius: 3px;
 }

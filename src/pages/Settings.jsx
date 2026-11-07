@@ -10,6 +10,10 @@ import {
     LoaderCircle,
     LogOut,
     Mail,
+    Monitor,
+    Moon,
+    Palette,
+    Sun,
     MonitorSmartphone,
     Pencil,
     RotateCw,
@@ -23,6 +27,7 @@ import Avatar from '../components/Avatar'
 import EditProfilePanel from '../components/EditProfilePanel'
 import PasswordChecklist from '../components/PasswordChecklist'
 import { useCaptcha } from '../components/useCaptcha'
+import { useTheme } from '../hooks/useTheme'
 import { fetchOwnProfile } from '../lib/profileApi'
 import { MIN_PASSWORD_LENGTH, isPasswordAcceptable } from '../lib/password'
 import {
@@ -36,6 +41,31 @@ import {
 import './Settings.css'
 
 const TOAST_MS = 4500
+
+const THEME_OPTIONS = [
+    { id: 'system', label: 'System', hint: 'Match your device', icon: Monitor },
+    { id: 'light', label: 'Light', hint: 'Bright and clean', icon: Sun },
+    { id: 'dark', label: 'Dark', hint: 'Easy on the eyes', icon: Moon },
+]
+
+// A tiny drawing of the app in a given theme.
+function ThemePreview({ mode }) {
+    return (
+        <span className={`theme-preview ${mode}`} aria-hidden="true">
+            {mode === 'system' ? (
+                <>
+                    <span className="theme-preview-half light"><span className="tp-side" /><span className="tp-main"><span /><span /></span></span>
+                    <span className="theme-preview-half dark"><span className="tp-side" /><span className="tp-main"><span /><span /></span></span>
+                </>
+            ) : (
+                <>
+                    <span className="tp-side" />
+                    <span className="tp-main"><span /><span /><span /></span>
+                </>
+            )}
+        </span>
+    )
+}
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // Password input with a show/hide toggle that announces its state.
@@ -75,6 +105,7 @@ function Settings() {
     const hasPassword = user?.identities ? user.identities.some((i) => i.provider === 'email') : true
 
     const [profile, setProfile] = useState(null)
+    const { preference, theme, setPreference } = useTheme()
     const [status, setStatus] = useState('loading')
     const [reloadKey, setReloadKey] = useState(0)
     const [editing, setEditing] = useState(false)
@@ -300,6 +331,39 @@ function Settings() {
                         </div>
                     </div>
                     <p className="st-hint">Your name, username and bio are shown on your profile. Change your photo from the profile page.</p>
+                </section>
+
+                {/* Appearance */}
+                <section className="st-card" aria-labelledby="st-appearance">
+                    <div className="st-card-head">
+                        <Palette size={20} aria-hidden="true" />
+                        <h2 id="st-appearance">Appearance</h2>
+                    </div>
+                    <div className="theme-options" role="radiogroup" aria-labelledby="st-appearance">
+                        {THEME_OPTIONS.map(({ id, label, hint, icon: Icon }) => (
+                            <label key={id} className={`theme-option${preference === id ? ' selected' : ''}`}>
+                                <input
+                                    type="radio"
+                                    name="theme"
+                                    value={id}
+                                    checked={preference === id}
+                                    onChange={() => setPreference(id)}
+                                    className="sr-only"
+                                />
+                                <ThemePreview mode={id} />
+                                <span className="theme-option-text">
+                                    <span className="theme-option-label">
+                                        <Icon size={16} aria-hidden="true" /> {label}
+                                        {preference === id && <Check size={16} className="theme-option-check" aria-hidden="true" />}
+                                    </span>
+                                    <span className="theme-option-hint">{hint}</span>
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                    {preference === 'system' && (
+                        <p className="st-hint">Your device is using {theme} mode right now.</p>
+                    )}
                 </section>
 
                 {/* Email */}
