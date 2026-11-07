@@ -156,6 +156,38 @@ export function AuthProvider({ children }) {
         return result
     }
 
+    // Whether the signed-in user still needs the welcome flow. Stored per
+    // user id so a different account is checked afresh.
+    const [onboarding, setOnboarding] = useState({ userId: null, needed: false })
+    const userId = user?.id
+
+    useEffect(() => {
+        if (!userId) return
+        let active = true
+        supabase
+            .from('profiles')
+            .select('onboarded_at')
+            .eq('id', userId)
+            .maybeSingle()
+            .then(({ data, error }) => {
+                if (!active) return
+                // If the check fails, never block the app.
+                setOnboarding({ userId, needed: !error && (!data || data.onboarded_at === null) })
+            })
+        return () => {
+            active = false
+        }
+    }, [userId])
+
+    const onboardingChecked = !userId || onboarding.userId === userId
+    const needsOnboarding = Boolean(userId) && onboarding.userId === userId && onboarding.needed
+
+    const completeOnboarding = async () => {
+        if (!userId) return
+        setOnboarding({ userId, needed: false })
+        await supabase.from('profiles').update({ onboarded_at: new Date().toISOString() }).eq('id', userId)
+    }
+
     const logout = async () => {
         return await supabase.auth.signOut()
     }
@@ -166,6 +198,9 @@ export function AuthProvider({ children }) {
                 user,
                 loading,
                 passwordRecovery,
+                onboardingChecked,
+                needsOnboarding,
+                completeOnboarding,
                 signup,
                 login,
                 loginWithProvider,
