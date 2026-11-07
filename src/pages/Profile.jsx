@@ -1,352 +1,674 @@
 
-import { useEffect, useState } from 'react';
-import { Camera, Save, User, FileText } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import {
+    Camera,
+    Check,
+    Clock,
+    Heart,
+    ImageOff,
+    LoaderCircle,
+    MessageCircle,
+    Pencil,
+    RotateCw,
+    Trash2,
+    UserCheck,
+    UserPlus,
+    UserX,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
+import Avatar from '../components/Avatar';
+import PostViewer from '../components/PostViewer';
+import EditProfilePanel from '../components/EditProfilePanel';
+import {
+    answerFriendRequest,
+    cancelFriendRequest,
+    deleteAvatarFile,
+    fetchFriendship,
+    fetchOwnProfile,
+    fetchProfileByUsername,
+    fetchProfilePosts,
+    fetchProfileStats,
+    sendFriendRequest,
+    updateProfile,
+    uploadAvatar,
+} from '../lib/profileApi';
 import './Profile.css';
+
+const TOAST_MS = 5000;
+const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+const nameOf = (p) => p?.full_name || p?.username || 'Connectify user';
+
+function formatCount(n) {
+    if (n === null || n === undefined) return '–';
+    if (n >= 10000) return `${Math.round(n / 1000)}k`;
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+    return String(n);
+}
+
+function joinedLabel(value) {
+    if (!value) return null;
+    return `Joined ${new Date(value).toLocaleDateString([], { month: 'long', year: 'numeric' })}`;
+}
 
 function Profile() {
     const { user, logout } = useAuth();
+    const { username: routeUsername } = useParams();
+    const userId = user?.id;
+    const signupName = user?.user_metadata?.full_name || '';
 
-    const [profile, setProfile] = useState({
-        full_name: '',
-        username: '',
-        bio: '',
-        avatar_url: '',
-    });
-
+    const [profile, setProfile] = useState(null);
+    const [status, setStatus] = useState('loading'); // loading | ready | notfound | error
+    const [reloadKey, setReloadKey] = useState(0);
+    const [stats, setStats] = useState({ posts: null, friends: null, likes: null });
     const [posts, setPosts] = useState([]);
-    const [selectedImage, setSelectedImage] = useState(null);
-    const [preview, setPreview] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [message, setMessage] = useState('');
-    const [messageType, setMessageType] = useState('');
+    const [postsStatus, setPostsStatus] = useState('loading');
+    const [hasMore, setHasMore] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [friendship, setFriendship] = useState(null);
+    const [friendBusy, setFriendBusy] = useState(false);
+    const [me, setMe] = useState(null);
+
+    const [viewerIndex, setViewerIndex] = useState(null);
+    const [editing, setEditing] = useState(null); // null | field to focus
+    const [avatarBusy, setAvatarBusy] = useState(false);
+    const [avatarMenu, setAvatarMenu] = useState(false);
+    const [toast, setToast] = useState(null);
+
+    const fileRef = useRef(null);
+    const toastTimer = useRef(null);
+    const pendingAvatarDelete = useRef(null);
+    const sentinelRef = useRef(null);
+
+    const isOwn = Boolean(profile && profile.id === userId);
+
+    function openFilePicker() {
+        fileRef.current?.click();
+    }
+
+    function runSetupStep(id) {
+        if (id === 'photo') openFilePicker();
+        else setEditing(id);
+    }
+
+    // ---- Toasts --------------------------------------------------------------
+
+    const showToast = useCallback((text, tone = 'info', action = null) => {
+        clearTimeout(toastTimer.current);
+        setToast({ text, tone, action, id: Date.now() });
+        toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
+    }, []);
+
+    // ---- Load profile ---------------------------------------------------------
 
     useEffect(() => {
-        if (user) {
-            loadProfile();
+        if (!userId) return;
+        let active = true;
+
+        const load = routeUsername
+            ? fetchProfileByUsername(routeUsername)
+            : fetchOwnProfile(userId, signupName);
+
+        load
+            .then((p) => {
+                if (!active) return;
+                if (!p) {
+                    setStatus('notfound');
+                    return;
+                }
+                setProfile(p);
+                setStatus('ready');
+            })
+            .catch(() => active && setStatus('error'));
+
+        return () => {
+            active = false;
+        };
+    }, [userId, signupName, routeUsername, reloadKey]);
+
+    const profileId = profile?.id;
+
+    // Stats, first page of posts and friendship for the loaded profile.
+    useEffect(() => {
+        if (!profileId || !userId) return;
+        let active = true;
+
+        fetchProfileStats(profileId).then((s) => active && setStats(s));
+
+        fetchProfilePosts(profileId, userId)
+            .then((page) => {
+                if (!active) return;
+                setPosts(page.posts);
+                setHasMore(page.hasMore);
+                setPostsStatus('ready');
+            })
+            .catch(() => active && setPostsStatus('error'));
+
+        if (profileId !== userId) {
+            fetchOwnProfile(userId, signupName).then((p) => active && setMe(p)).catch(() => {});
+            fetchFriendship(userId, profileId)
+                .then((f) => active && setFriendship(f))
+                .catch(() => active && setFriendship({ status: 'unknown', request: null }));
         }
-    }, [user]);
 
-    async function loadProfile() {
-        setLoading(true);
-        setMessage('');
+        return () => {
+            active = false;
+        };
+    }, [profileId, userId, signupName, reloadKey]);
 
+    // Delete a replaced avatar file once the undo window has passed, or on leave.
+    useEffect(
+        () => () => {
+            clearTimeout(toastTimer.current);
+            const pending = pendingAvatarDelete.current;
+            if (pending) {
+                clearTimeout(pending.timer);
+                deleteAvatarFile(pending.userId, pending.url);
+            }
+        },
+        []
+    );
+
+    // ---- Posts pagination ------------------------------------------------------
+
+    const loadMore = useCallback(async () => {
+        if (!hasMore || loadingMore || posts.length === 0) return;
+        setLoadingMore(true);
         try {
-            const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', user.id)
-                .single();
-
-            if (profileError) throw profileError;
-
-            setProfile({
-                full_name: profileData.full_name || '',
-                username: profileData.username || '',
-                bio: profileData.bio || '',
-                avatar_url: profileData.avatar_url || '',
+            const page = await fetchProfilePosts(profileId, userId, posts[posts.length - 1].created_at);
+            setPosts((list) => {
+                const ids = new Set(list.map((p) => p.id));
+                return [...list, ...page.posts.filter((p) => !ids.has(p.id))];
             });
-
-            setPreview(profileData.avatar_url || '');
-
-            const { data: postData, error: postError } = await supabase
-                .from('posts')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false });
-
-            if (postError) throw postError;
-
-            setPosts(postData || []);
-        } catch (error) {
-            setMessage(error.message || 'Unable to load your profile.');
-            setMessageType('error');
+            setHasMore(page.hasMore);
+        } catch {
+            showToast('Couldn’t load more posts. Try again.', 'error');
         } finally {
-            setLoading(false);
+            setLoadingMore(false);
         }
-    }
+    }, [hasMore, loadingMore, posts, profileId, userId, showToast]);
 
-    function handleChange(event) {
-        const { name, value } = event.target;
+    useEffect(() => {
+        const el = sentinelRef.current;
+        if (!el || !hasMore) return;
+        const observer = new IntersectionObserver((entries) => entries[0].isIntersecting && loadMore(), {
+            rootMargin: '500px 0px',
+        });
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [hasMore, loadMore]);
 
-        setProfile((current) => ({
-            ...current,
-            [name]: value,
-        }));
-    }
+    // ---- Avatar -------------------------------------------------------------------
 
-    function handleImageChange(event) {
+    const scheduleAvatarDelete = (url) => {
+        if (!url) return;
+        const timer = setTimeout(() => {
+            deleteAvatarFile(userId, url);
+            pendingAvatarDelete.current = null;
+        }, TOAST_MS + 1000);
+        pendingAvatarDelete.current = { timer, url, userId };
+    };
+
+    const flushPendingDelete = () => {
+        const pending = pendingAvatarDelete.current;
+        if (pending) {
+            clearTimeout(pending.timer);
+            deleteAvatarFile(pending.userId, pending.url);
+            pendingAvatarDelete.current = null;
+        }
+    };
+
+    const applyAvatar = async (newUrl, { uploaded = false } = {}) => {
+        const previous = profile.avatar_url || null;
+        flushPendingDelete();
+        try {
+            const saved = await updateProfile(userId, { avatar_url: newUrl });
+            setProfile(saved);
+            scheduleAvatarDelete(previous);
+
+            showToast(newUrl ? 'Profile photo updated.' : 'Profile photo removed.', 'info', {
+                label: 'Undo',
+                run: async () => {
+                    clearTimeout(pendingAvatarDelete.current?.timer);
+                    pendingAvatarDelete.current = null;
+                    try {
+                        const restored = await updateProfile(userId, { avatar_url: previous });
+                        setProfile(restored);
+                        if (uploaded) deleteAvatarFile(userId, newUrl);
+                        showToast('Photo change undone.');
+                    } catch {
+                        showToast('Couldn’t undo. Try again.', 'error');
+                    }
+                },
+            });
+        } catch {
+            if (uploaded) deleteAvatarFile(userId, newUrl);
+            showToast('Your photo wasn’t saved. Try again.', 'error');
+        }
+    };
+
+    const pickAvatar = async (event) => {
         const file = event.target.files?.[0];
-
+        event.target.value = '';
+        setAvatarMenu(false);
         if (!file) return;
 
-        if (!file.type.startsWith('image/')) {
-            setMessage('Please select a valid image.');
-            setMessageType('error');
-            event.target.value = '';
+        if (!AVATAR_TYPES.includes(file.type)) {
+            showToast('Choose a JPG, PNG, WEBP or GIF image.', 'error');
+            return;
+        }
+        if (file.size > 15 * 1024 * 1024) {
+            showToast('Choose an image smaller than 15 MB.', 'error');
             return;
         }
 
-        if (file.size > 5 * 1024 * 1024) {
-            setMessage('Image size must be smaller than 5 MB.');
-            setMessageType('error');
-            event.target.value = '';
-            return;
-        }
-
-        setSelectedImage(file);
-
-        const imagePreview = URL.createObjectURL(file);
-        setPreview(imagePreview);
-
-        setMessage('');
-        setMessageType('');
-    }
-
-    async function handleSave(event) {
-        event.preventDefault();
-
-        if (!user) {
-            setMessage('Please log in again to update your profile.');
-            setMessageType('error');
-            return;
-        }
-
-        if (!profile.full_name.trim() || !profile.username.trim()) {
-            setMessage('Full name and username are required.');
-            setMessageType('error');
-            return;
-        }
-
-        setSaving(true);
-        setMessage('');
-        setMessageType('');
-
+        setAvatarBusy(true);
         try {
-            let avatarUrl = profile.avatar_url;
-
-            // Upload a new profile picture if selected.
-            if (selectedImage) {
-                const fileExtension = selectedImage.name
-                    .split('.')
-                    .pop()
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]/g, '');
-
-                const fileName = `${crypto.randomUUID()}.${fileExtension || 'jpg'}`;
-
-                const filePath = `${user.id}/avatars/${fileName}`;
-
-                const { data: uploadData, error: uploadError } =
-                    await supabase.storage
-                        .from('post-images')
-                        .upload(filePath, selectedImage, {
-                            cacheControl: '3600',
-                            upsert: false,
-                            contentType: selectedImage.type,
-                        });
-
-                if (uploadError) {
-                    throw new Error(
-                        `Image upload failed: ${uploadError.message}`
-                    );
-                }
-
-                const { data: publicUrlData } = supabase.storage
-                    .from('post-images')
-                    .getPublicUrl(uploadData.path);
-
-                avatarUrl = publicUrlData.publicUrl;
-            }
-
-            // Update the profile in the database.
-            const { error: updateError } = await supabase
-                .from('profiles')
-                .update({
-                    full_name: profile.full_name.trim(),
-                    username: profile.username.trim().toLowerCase(),
-                    bio: profile.bio.trim(),
-                    avatar_url: avatarUrl,
-                })
-                .eq('id', user.id);
-
-            if (updateError) {
-                throw new Error(
-                    `Profile update failed: ${updateError.message}`
-                );
-            }
-
-            setProfile((current) => ({
-                ...current,
-                avatar_url: avatarUrl,
-            }));
-
-            setSelectedImage(null);
-
-            setMessage('Profile updated successfully!');
-            setMessageType('success');
-        } catch (error) {
-            console.error('Profile save error:', error);
-
-            setMessage(error.message || 'Something went wrong.');
-            setMessageType('error');
+            const url = await uploadAvatar(userId, file);
+            await applyAvatar(url, { uploaded: true });
+        } catch {
+            showToast('Your photo wasn’t uploaded. Try again.', 'error');
         } finally {
-            setSaving(false);
+            setAvatarBusy(false);
         }
-    }
+    };
 
-    if (loading) {
-        return <div className="profile-loading">Loading profile...</div>;
+    const removeAvatar = async () => {
+        setAvatarMenu(false);
+        setAvatarBusy(true);
+        await applyAvatar(null);
+        setAvatarBusy(false);
+    };
+
+    // ---- Friendship ----------------------------------------------------------------
+
+    const friendAction = async (kind) => {
+        if (friendBusy) return;
+        setFriendBusy(true);
+        try {
+            if (kind === 'add') {
+                const request = await sendFriendRequest(userId, profileId);
+                setFriendship({ status: 'sent', request });
+                showToast('Friend request sent.');
+            } else if (kind === 'cancel') {
+                await cancelFriendRequest(userId, friendship.request.id);
+                setFriendship({ status: 'none', request: null });
+                showToast('Friend request cancelled.');
+            } else {
+                const updated = await answerFriendRequest(userId, friendship.request.id, kind);
+                if (updated?.status === 'accepted') {
+                    setFriendship({ status: 'friends', request: updated });
+                    setStats((s) => ({ ...s, friends: s.friends === null ? null : s.friends + 1 }));
+                    showToast(`You and ${nameOf(profile)} are now friends.`);
+                } else {
+                    setFriendship({ status: 'none', request: null });
+                    showToast('Request declined.');
+                }
+            }
+        } catch (err) {
+            showToast(
+                err?.code === '23505'
+                    ? 'There’s already a request between you two.'
+                    : 'That didn’t work. Try again.',
+                'error'
+            );
+            fetchFriendship(userId, profileId).then(setFriendship).catch(() => {});
+        } finally {
+            setFriendBusy(false);
+        }
+    };
+
+    // ---- Post viewer callbacks -------------------------------------------------------
+
+    const patchPost = (id, patch) =>
+        setPosts((list) => list.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+
+    const handleDeleted = (id) => {
+        setPosts((list) => {
+            const next = list.filter((p) => p.id !== id);
+            setViewerIndex((i) => (next.length === 0 ? null : Math.min(i, next.length - 1)));
+            return next;
+        });
+        setStats((s) => ({ ...s, posts: s.posts === null ? null : Math.max(0, s.posts - 1) }));
+        showToast('Post deleted.');
+    };
+
+    // ---- Render pieces ---------------------------------------------------------------
+
+    const renderFriendButtons = () => {
+        if (!friendship) {
+            return <span className="pf-button ghost" aria-hidden="true"><LoaderCircle size={16} className="spin" /></span>;
+        }
+        const busy = friendBusy;
+        switch (friendship.status) {
+            case 'friends':
+                return (
+                    <>
+                        <span className="pf-chip"><UserCheck size={16} aria-hidden="true" /> Friends</span>
+                        <Link to={`/messages?with=${profileId}`} className="pf-button primary">
+                            <MessageCircle size={16} aria-hidden="true" /> Message
+                        </Link>
+                    </>
+                );
+            case 'sent':
+                return friendship.request?.status === 'pending' ? (
+                    <button type="button" className="pf-button" onClick={() => friendAction('cancel')} disabled={busy}>
+                        <Clock size={16} aria-hidden="true" /> Request sent · Cancel
+                    </button>
+                ) : (
+                    <span className="pf-chip"><Clock size={16} aria-hidden="true" /> Request sent</span>
+                );
+            case 'received':
+                return (
+                    <>
+                        <button type="button" className="pf-button primary" onClick={() => friendAction('accepted')} disabled={busy}>
+                            <Check size={16} aria-hidden="true" /> Accept request
+                        </button>
+                        <button type="button" className="pf-button" onClick={() => friendAction('rejected')} disabled={busy}>
+                            <UserX size={16} aria-hidden="true" /> Decline
+                        </button>
+                    </>
+                );
+            case 'none':
+                return (
+                    <button type="button" className="pf-button primary" onClick={() => friendAction('add')} disabled={busy}>
+                        {busy ? <LoaderCircle size={16} className="spin" aria-hidden="true" /> : <UserPlus size={16} aria-hidden="true" />}
+                        Add friend
+                    </button>
+                );
+            default:
+                return null;
+        }
+    };
+
+    const setupSteps = isOwn
+        ? [
+              { id: 'username', done: Boolean(profile.username), label: 'Pick a username' },
+              { id: 'photo', done: Boolean(profile.avatar_url), label: 'Add a profile photo' },
+              { id: 'bio', done: Boolean(profile.bio), label: 'Write a short bio' },
+          ]
+        : [];
+    const setupLeft = setupSteps.filter((s) => !s.done);
+
+    const renderPosts = () => {
+        if (postsStatus === 'loading') {
+            return (
+                <div className="pf-grid" aria-busy="true" aria-label="Loading posts">
+                    {Array.from({ length: 6 }, (_, i) => <span key={i} className="pf-tile skel" />)}
+                </div>
+            );
+        }
+        if (postsStatus === 'error') {
+            return (
+                <div className="pf-empty">
+                    <p>We couldn’t load the posts.</p>
+                    <button
+                        type="button"
+                        className="pf-button"
+                        onClick={() => {
+                            setPostsStatus('loading');
+                            setReloadKey((k) => k + 1);
+                        }}
+                    >
+                        <RotateCw size={16} aria-hidden="true" /> Try again
+                    </button>
+                </div>
+            );
+        }
+        if (posts.length === 0) {
+            return (
+                <div className="pf-empty">
+                    <div className="pf-empty-icon"><ImageOff size={26} aria-hidden="true" /></div>
+                    <h3>No posts yet</h3>
+                    <p>{isOwn ? 'Share your first post from the Home page.' : `${nameOf(profile)} hasn’t posted anything yet.`}</p>
+                    {isOwn && <Link to="/" className="pf-button primary">Create a post</Link>}
+                </div>
+            );
+        }
+        return (
+            <>
+                <ul className="pf-grid">
+                    {posts.map((post, i) => (
+                        <li key={post.id}>
+                            <button
+                                type="button"
+                                className={`pf-tile${post.image_url ? '' : ' text'}`}
+                                onClick={() => setViewerIndex(i)}
+                                aria-label={`Open post${post.caption ? `: ${post.caption.slice(0, 80)}` : ''}. ${post.likeCount} likes, ${post.commentCount} comments`}
+                            >
+                                {post.image_url ? (
+                                    <img
+                                        src={post.image_url}
+                                        alt=""
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                ) : (
+                                    <span className="pf-tile-text">{post.caption}</span>
+                                )}
+                                <span className="pf-tile-overlay" aria-hidden="true">
+                                    <span><Heart size={18} fill="currentColor" /> {post.likeCount}</span>
+                                    <span><MessageCircle size={18} fill="currentColor" /> {post.commentCount}</span>
+                                </span>
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+                {hasMore && (
+                    <div ref={sentinelRef} className="pf-more">
+                        <button type="button" className="pf-button" onClick={loadMore} disabled={loadingMore}>
+                            {loadingMore && <LoaderCircle size={16} className="spin" aria-hidden="true" />}
+                            {loadingMore ? 'Loading…' : 'Load more'}
+                        </button>
+                    </div>
+                )}
+            </>
+        );
+    };
+
+    // ---- Page states ---------------------------------------------------------------
+
+    let content;
+    if (status === 'loading') {
+        content = (
+            <div className="pf-shell" aria-busy="true" aria-label="Loading profile">
+                <div className="pf-cover" />
+                <div className="pf-head">
+                    <span className="pf-avatar-skel skel" />
+                    <span className="skel skel-line wide" />
+                    <span className="skel skel-line" />
+                </div>
+            </div>
+        );
+    } else if (status === 'notfound') {
+        content = (
+            <div className="pf-empty page">
+                <div className="pf-empty-icon"><UserX size={26} aria-hidden="true" /></div>
+                <h1>This profile doesn’t exist</h1>
+                <p>The link may be wrong, or the username has changed.</p>
+                <Link to="/friends" className="pf-button primary">Find people</Link>
+            </div>
+        );
+    } else if (status === 'error') {
+        content = (
+            <div className="pf-empty page">
+                <h1>We couldn’t load this profile</h1>
+                <p>Check your connection and try again.</p>
+                <button
+                    type="button"
+                    className="pf-button"
+                    onClick={() => {
+                        setStatus('loading');
+                        setReloadKey((k) => k + 1);
+                    }}
+                >
+                    <RotateCw size={16} aria-hidden="true" /> Try again
+                </button>
+            </div>
+        );
+    } else {
+        const joined = joinedLabel(profile.created_at);
+        content = (
+            <div className="pf-shell">
+                <div className="pf-cover" aria-hidden="true" />
+
+                <section className="pf-head" aria-label="Profile">
+                    <div className="pf-avatar-wrap">
+                        <Avatar profile={profile} size={120} className="pf-avatar" />
+                        {avatarBusy && (
+                            <span className="pf-avatar-busy" role="status" aria-label="Updating photo">
+                                <LoaderCircle size={26} className="spin" />
+                            </span>
+                        )}
+                        {isOwn && (
+                            <div className="pf-avatar-menu-wrap">
+                                <button
+                                    type="button"
+                                    className="pf-camera"
+                                    onClick={() => (profile.avatar_url ? setAvatarMenu((v) => !v) : openFilePicker())}
+                                    aria-label="Change profile photo"
+                                    aria-haspopup={profile.avatar_url ? 'menu' : undefined}
+                                    aria-expanded={profile.avatar_url ? avatarMenu : undefined}
+                                    disabled={avatarBusy}
+                                >
+                                    <Camera size={17} />
+                                </button>
+                                {avatarMenu && (
+                                    <div className="pf-menu" role="menu">
+                                        <button type="button" role="menuitem" onClick={openFilePicker}>
+                                            <Camera size={16} aria-hidden="true" /> Upload new photo
+                                        </button>
+                                        <button type="button" role="menuitem" className="danger" onClick={removeAvatar}>
+                                            <Trash2 size={16} aria-hidden="true" /> Remove photo
+                                        </button>
+                                    </div>
+                                )}
+                                <input
+                                    ref={fileRef}
+                                    type="file"
+                                    accept={AVATAR_TYPES.join(',')}
+                                    onChange={pickAvatar}
+                                    className="sr-only"
+                                    tabIndex={-1}
+                                    aria-hidden="true"
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="pf-identity">
+                        <h1>{nameOf(profile)}</h1>
+                        {profile.username && <p className="pf-handle">@{profile.username}</p>}
+                        {profile.bio && <p className="pf-bio">{profile.bio}</p>}
+                        {joined && <p className="pf-joined">{joined}</p>}
+                    </div>
+
+                    <div className="pf-actions">
+                        {isOwn ? (
+                            <button type="button" className="pf-button" onClick={() => setEditing('full_name')}>
+                                <Pencil size={16} aria-hidden="true" /> Edit profile
+                            </button>
+                        ) : (
+                            renderFriendButtons()
+                        )}
+                    </div>
+
+                    <dl className="pf-stats">
+                        <div>
+                            <dt>Posts</dt>
+                            <dd>{formatCount(stats.posts)}</dd>
+                        </div>
+                        <div>
+                            <dt>Friends</dt>
+                            <dd>
+                                {isOwn ? <Link to="/friends">{formatCount(stats.friends)}</Link> : formatCount(stats.friends)}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>Likes</dt>
+                            <dd>{formatCount(stats.likes)}</dd>
+                        </div>
+                    </dl>
+                </section>
+
+                {isOwn && setupLeft.length > 0 && (
+                    <section className="pf-setup" aria-labelledby="setup-title">
+                        <h2 id="setup-title">Finish setting up your profile</h2>
+                        <p>{setupSteps.length - setupLeft.length} of {setupSteps.length} done. A complete profile helps friends recognise you.</p>
+                        <ul>
+                            {setupSteps.map((s) => (
+                                <li key={s.id} className={s.done ? 'done' : ''}>
+                                    {s.done ? (
+                                        <span><Check size={16} aria-hidden="true" /> {s.label}</span>
+                                    ) : (
+                                        <button type="button" onClick={() => runSetupStep(s.id)}>{s.label}</button>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                )}
+
+                <section className="pf-posts" aria-labelledby="posts-title">
+                    <h2 id="posts-title">Posts</h2>
+                    {renderPosts()}
+                </section>
+            </div>
+        );
     }
 
     return (
         <div className="profile-layout">
             <Sidebar activePage="Profile" onLogout={logout} />
 
-            <main className="profile-main">
-                <header className="profile-header">
-                    <div>
-                        <span className="profile-eyebrow">YOUR SPACE</span>
-                        <h1>My Profile</h1>
-                        <p>Manage your identity and see what you've shared.</p>
-                    </div>
-                </header>
+            <main className="profile-main">{content}</main>
 
-                <section className="profile-card">
-                    <div className="profile-card-top">
-                        <div className="profile-avatar-wrapper">
-                            {preview ? (
-                                <img
-                                    src={preview}
-                                    alt="Profile"
-                                    className="profile-avatar"
-                                />
-                            ) : (
-                                <div className="profile-avatar profile-avatar-placeholder">
-                                    <User size={38} />
-                                </div>
-                            )}
+            {viewerIndex !== null && posts[viewerIndex] && (
+                <PostViewer
+                    posts={posts}
+                    index={viewerIndex}
+                    author={profile}
+                    viewer={isOwn ? profile : me ?? { id: userId, full_name: signupName }}
+                    onIndexChange={setViewerIndex}
+                    onClose={() => setViewerIndex(null)}
+                    onPostChange={patchPost}
+                    onPostDeleted={handleDeleted}
+                    onError={(text) => showToast(text, 'error')}
+                />
+            )}
 
-                            <label className="profile-camera-button">
-                                <Camera size={17} />
-                                <input
-                                    type="file"
-                                    accept="image/png,image/jpeg,image/webp,image/gif"
-                                    onChange={handleImageChange}
-                                    hidden
-                                />
-                            </label>
-                        </div>
+            {editing && profile && (
+                <EditProfilePanel
+                    profile={profile}
+                    focusField={editing}
+                    onClose={() => setEditing(null)}
+                    onSaved={(saved) => {
+                        setProfile(saved);
+                        setEditing(null);
+                        showToast('Profile saved.');
+                    }}
+                />
+            )}
 
-                        <div className="profile-identity">
-                            <h2>{profile.full_name || 'Your Name'}</h2>
-                            <p>@{profile.username || 'username'}</p>
-                        </div>
-                    </div>
-
-                    <form className="profile-form" onSubmit={handleSave}>
-                        <label>
-                            Full name
-                            <input
-                                type="text"
-                                name="full_name"
-                                value={profile.full_name}
-                                onChange={handleChange}
-                                placeholder="Enter your full name"
-                                required
-                            />
-                        </label>
-
-                        <label>
-                            Username
-                            <input
-                                type="text"
-                                name="username"
-                                value={profile.username}
-                                onChange={handleChange}
-                                placeholder="Choose a username"
-                                required
-                            />
-                        </label>
-
-                        <label>
-                            Bio
-                            <textarea
-                                name="bio"
-                                value={profile.bio}
-                                onChange={handleChange}
-                                placeholder="Tell people a little about yourself"
-                                rows="4"
-                                maxLength="160"
-                            />
-                        </label>
-
-                        {message && (
-                            <p
-                                className="profile-message"
-                                style={{
-                                    color:
-                                        messageType === 'success'
-                                            ? '#4ade80'
-                                            : '#f87171',
-                                }}
-                                role="status"
-                            >
-                                {message}
-                            </p>
-                        )}
-
+            {toast && (
+                <div key={toast.id} className={`pf-toast ${toast.tone}`} role={toast.tone === 'error' ? 'alert' : 'status'}>
+                    <span>{toast.text}</span>
+                    {toast.action && (
                         <button
-                            type="submit"
-                            className="profile-save-button"
-                            disabled={saving}
+                            type="button"
+                            onClick={() => {
+                                const run = toast.action.run;
+                                setToast(null);
+                                run();
+                            }}
                         >
-                            <Save size={17} />
-                            {saving ? 'Saving...' : 'Save changes'}
+                            {toast.action.label}
                         </button>
-                    </form>
-                </section>
-
-                <section className="profile-posts-section">
-                    <div className="profile-posts-heading">
-                        <div>
-                            <span className="profile-eyebrow">YOUR ACTIVITY</span>
-                            <h2>My Posts</h2>
-                        </div>
-
-                        <span className="profile-post-count">
-                            {posts.length} {posts.length === 1 ? 'post' : 'posts'}
-                        </span>
-                    </div>
-
-                    {posts.length === 0 ? (
-                        <div className="profile-empty">
-                            <FileText size={30} />
-                            <h3>No posts yet</h3>
-                            <p>Your posts will appear here when you share something.</p>
-                        </div>
-                    ) : (
-                        <div className="profile-post-grid">
-                            {posts.map((post) => (
-                                <article className="profile-post" key={post.id}>
-                                    {post.image_url ? (
-                                        <img src={post.image_url} alt="Post" />
-                                    ) : (
-                                        <div className="profile-post-text">
-                                            <FileText size={25} />
-                                        </div>
-                                    )}
-
-                                    {post.caption && <p>{post.caption}</p>}
-                                </article>
-                            ))}
-                        </div>
                     )}
-                </section>
-            </main>
+                </div>
+            )}
         </div>
     );
 }

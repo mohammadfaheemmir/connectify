@@ -15,6 +15,7 @@ import {
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Sidebar from '../components/Sidebar'
+import ProfileLink from '../components/ProfileLink'
 import './Friends.css'
 
 function Friends() {
@@ -266,7 +267,7 @@ function Friends() {
                 {renderAvatar(profile)}
 
                 <div className="friend-card-info">
-                    <h3>{profile.full_name || 'Unnamed User'}</h3>
+                    <h3><ProfileLink profile={profile}>{profile.full_name || 'Unnamed User'}</ProfileLink></h3>
                     <p>@{profile.username || 'user'}</p>
                     {profile.bio && <span>{profile.bio}</span>}
                 </div>
@@ -300,7 +301,7 @@ function Friends() {
                 {renderAvatar(profile)}
 
                 <div className="friend-card-info">
-                    <h3>{profile.full_name || 'Unnamed User'}</h3>
+                    <h3><ProfileLink profile={profile}>{profile.full_name || 'Unnamed User'}</ProfileLink></h3>
                     <p>@{profile.username || 'user'}</p>
                 </div>
 
@@ -340,7 +341,7 @@ function Friends() {
                 {renderAvatar(profile)}
 
                 <div className="friend-card-info">
-                    <h3>{profile.full_name || 'Unnamed User'}</h3>
+                    <h3><ProfileLink profile={profile}>{profile.full_name || 'Unnamed User'}</ProfileLink></h3>
                     <p>@{profile.username || 'user'}</p>
                     <span>Request pending</span>
                 </div>
@@ -368,7 +369,7 @@ function Friends() {
             {renderAvatar(profile)}
 
             <div className="friend-card-info">
-                <h3>{profile.full_name || 'Unnamed User'}</h3>
+                <h3><ProfileLink profile={profile}>{profile.full_name || 'Unnamed User'}</ProfileLink></h3>
                 <p>@{profile.username || 'user'}</p>
             </div>
 

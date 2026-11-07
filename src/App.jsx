@@ -1,5 +1,5 @@
 
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 
 import { useAuth } from './context/AuthContext';
 
@@ -31,6 +31,12 @@ function PublicRoute({ children }) {
     }
 
     return user ? <Navigate to="/" replace /> : children;
+}
+
+// Remount the profile page when moving between users so no stale data shows.
+function UserProfileRoute() {
+    const { username } = useParams();
+    return <Profile key={username} />;
 }
 
 function App() {
@@ -89,6 +95,15 @@ function App() {
                     element={
                         <ProtectedRoute>
                             <Profile />
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/u/:username"
+                    element={
+                        <ProtectedRoute>
+                            <UserProfileRoute />
                         </ProtectedRoute>
                     }
                 />

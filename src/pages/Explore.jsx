@@ -11,6 +11,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
+import ProfileLink from '../components/ProfileLink';
 import './Explore.css';
 
 function Explore() {
@@ -289,7 +290,9 @@ function Explore() {
 
                                             <div>
                                                 <h3>
-                                                    {author?.full_name || 'Connectify User'}
+                                                    <ProfileLink profile={author}>
+                                                        {author?.full_name || 'Connectify User'}
+                                                    </ProfileLink>
                                                 </h3>
 
                                                 <span>
