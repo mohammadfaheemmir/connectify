@@ -1,0 +1,13 @@
+# Netlify headers.
+
+# The service worker and manifest must always be re-checked so updates
+# reach installed apps quickly.
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+  Content-Type: application/manifest+json
+
+# Built files have content hashes in their names and never change.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

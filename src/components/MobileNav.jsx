@@ -4,6 +4,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
     Bell,
     Compass,
+    Download,
     Home,
     LogOut,
     MessageCircle,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 import PostMenu from './PostMenu';
 import { useTheme } from '../hooks/useTheme';
+import { useInstall } from '../hooks/useInstall';
 
 const TABS = [
     { to: '/', label: 'Home', icon: Home, end: true },
@@ -33,6 +35,7 @@ function MobileNav({ unreadNotifications, onLogout }) {
     const location = useLocation();
     const navigate = useNavigate();
     const { theme, toggle } = useTheme();
+    const app = useInstall();
 
     const inConversation =
         location.pathname === '/messages' && new URLSearchParams(location.search).has('with');
@@ -81,6 +84,9 @@ function MobileNav({ unreadNotifications, onLogout }) {
                                 icon: theme === 'dark' ? Sun : Moon,
                                 onSelect: toggle,
                             },
+                            ...(app.canPrompt && !app.installed
+                                ? [{ label: 'Install app', icon: Download, onSelect: () => app.install() }]
+                                : []),
                             { label: 'Log out', icon: LogOut, danger: true, onSelect: () => onLogout?.() },
                         ]}
                     />

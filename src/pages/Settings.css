@@ -702,3 +702,38 @@
         flex: 1;
     }
 }
+
+/* ---------- Install app ---------- */
+
+.st-app-done {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: var(--success-text);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.st-app-steps ol {
+    margin: 10px 0 0;
+    padding-left: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--text-2);
+    font-size: 14px;
+}
+
+.st-app-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 7px;
+    font-weight: 600;
+    white-space: nowrap;
+}
