@@ -19,6 +19,7 @@ import Explore from './pages/Explore';
 import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
 import Messages from './pages/Messages';
+import Welcome from './pages/Welcome';
 
 const TITLES = {
     '/': 'Home',
@@ -33,6 +34,7 @@ const TITLES = {
     '/profile': 'Profile',
     '/notifications': 'Notifications',
     '/settings': 'Settings',
+    '/welcome': 'Welcome',
     '/messages': 'Messages',
 };
 
@@ -47,15 +49,20 @@ function RouteTitle() {
     return null;
 }
 
-function ProtectedRoute({ children }) {
-    const { user, loading } = useAuth();
+function ProtectedRoute({ children, onboardingPage = false }) {
+    const { user, loading, onboardingChecked, needsOnboarding } = useAuth();
     const location = useLocation();
 
-    if (loading) {
+    if (loading || (user && !onboardingChecked)) {
         return <div className="app-loading" role="status" aria-label="Loading"><span className="app-spinner" /></div>;
     }
 
-    if (user) return children;
+    if (user) {
+        // New users go through the welcome flow first; finished users skip it.
+        if (needsOnboarding && !onboardingPage) return <Navigate to="/welcome" replace />;
+        if (!needsOnboarding && onboardingPage) return <Navigate to="/" replace />;
+        return children;
+    }
 
     // Returning browsers see sign-in; everyone else sees signup.
     const target = hasAccountOnDevice() ? '/login' : '/signup';
@@ -150,6 +157,15 @@ function App() {
                     element={
                         <ProtectedRoute>
                             <Profile />
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/welcome"
+                    element={
+                        <ProtectedRoute onboardingPage>
+                            <Welcome />
                         </ProtectedRoute>
                     }
                 />

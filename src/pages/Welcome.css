@@ -1,0 +1,506 @@
+/* New-user setup at /welcome: one centred card, three steps. */
+
+.welcome-page {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: clamp(16px, 6vh, 64px) 16px 32px;
+    background:
+        radial-gradient(circle at 15% 0%, var(--accent-soft), transparent 45%),
+        var(--bg);
+    color: var(--text);
+}
+
+.wl-card {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 26px clamp(18px, 5vw, 34px) 28px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: 0 18px 50px var(--shadow-soft);
+}
+
+.wl-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.wl-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+}
+
+.wl-logo-icon {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: #fff;
+}
+
+.welcome-page .brand-dot {
+    color: var(--accent-text);
+}
+
+/* Progress */
+.wl-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-top: 6px;
+}
+
+.wl-progress-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.wl-progress-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface);
+    overflow: hidden;
+}
+
+.wl-progress-bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #7c3aed, #a855f7);
+    transition: width 0.35s ease;
+}
+
+.wl-title {
+    font-size: clamp(24px, 5vw, 30px);
+    font-weight: 750;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin-top: 4px;
+}
+
+.wl-title.center {
+    text-align: center;
+    margin-top: 18px;
+}
+
+.wl-title:focus {
+    outline: none;
+}
+
+.wl-intro {
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1.5;
+    margin-top: -6px;
+}
+
+.wl-step {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 6px;
+}
+
+.wl-center {
+    align-items: center;
+    text-align: center;
+    padding: 24px 0 8px;
+    color: var(--text-muted);
+}
+
+/* Buttons */
+.wl-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 42px;
+    padding: 0 16px;
+    border-radius: 11px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.wl-button:hover:not(:disabled) {
+    background: var(--surface-hover);
+    border-color: var(--border-hover);
+}
+
+.wl-button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.wl-button.primary {
+    background: #7c3aed;
+    border-color: #7c3aed;
+    color: #fff;
+}
+
+.wl-button.primary:hover:not(:disabled) {
+    background: #6d28d9;
+    border-color: #6d28d9;
+}
+
+.wl-button.small {
+    min-height: 36px;
+    padding: 0 13px;
+    font-size: 13px;
+    width: 100%;
+}
+
+.wl-button.large {
+    min-height: 48px;
+    padding: 0 22px;
+    font-size: 15px;
+}
+
+.wl-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.wl-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 38px;
+    padding: 0 6px;
+    border: 0;
+    background: none;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+}
+
+.wl-link:hover {
+    color: var(--text);
+}
+
+.wl-button:focus-visible,
+.wl-link:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+}
+
+.wl-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+/* Step 1 */
+.wl-photo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.wl-photo-ring {
+    position: relative;
+    display: inline-flex;
+    padding: 4px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+}
+
+.wl-photo-ring .avatar {
+    border: 3px solid var(--bg-raised);
+}
+
+.wl-photo-busy {
+    position: absolute;
+    inset: 4px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+}
+
+.wl-file {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.wl-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.wl-field label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-2);
+}
+
+.wl-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.wl-optional,
+.wl-count {
+    font-weight: 400;
+    font-size: 13px;
+    color: var(--text-faint);
+}
+
+.wl-count {
+    font-variant-numeric: tabular-nums;
+}
+
+.wl-field input,
+.wl-field textarea {
+    width: 100%;
+    padding: 11px 13px;
+    border-radius: 11px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 15px;
+    resize: vertical;
+}
+
+.wl-field input:focus,
+.wl-field textarea:focus {
+    outline: none;
+    border-color: var(--accent-border);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.wl-field input[aria-invalid='true'] {
+    border-color: var(--danger-text);
+}
+
+.wl-prefixed {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 13px;
+    border-radius: 11px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text-faint);
+}
+
+.wl-prefixed:focus-within {
+    border-color: var(--accent-border);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.wl-prefixed.invalid {
+    border-color: var(--danger-text);
+}
+
+.wl-field .wl-prefixed input,
+.wl-field .wl-prefixed input:focus {
+    padding: 11px 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+}
+
+.wl-hint {
+    font-size: 13px;
+    color: var(--text-faint);
+}
+
+.wl-hint.bad,
+.wl-error {
+    color: var(--danger-text);
+}
+
+.wl-error {
+    font-size: 14px;
+}
+
+/* Step 2 */
+.wl-people {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.wl-person {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 16px 10px 12px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    text-align: center;
+    min-width: 0;
+}
+
+.wl-person strong {
+    font-size: 14px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wl-person-sub {
+    font-size: 12px;
+    color: var(--text-faint);
+    min-height: 16px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 4px;
+}
+
+.wl-skel {
+    display: block;
+    background: var(--skeleton);
+    animation: wl-pulse 1.4s ease-in-out infinite;
+}
+
+.wl-skel-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+}
+
+.wl-skel-line {
+    width: 70%;
+    height: 12px;
+    border-radius: 6px;
+    margin: 6px 0 46px;
+}
+
+.wl-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 26px 16px;
+    text-align: center;
+    border: 1px dashed var(--border-strong);
+    border-radius: 14px;
+    color: var(--text-muted);
+}
+
+.wl-empty svg {
+    color: var(--accent-text);
+}
+
+.wl-empty strong {
+    color: var(--text);
+}
+
+.wl-empty .wl-button {
+    margin-top: 6px;
+}
+
+/* Step 3: the shared Composer sits flush inside the card. */
+.wl-composer > * {
+    margin: 0;
+}
+
+/* Done */
+.wl-done {
+    gap: 18px;
+}
+
+.wl-done p {
+    max-width: 40ch;
+    line-height: 1.5;
+}
+
+.wl-done-icon {
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent-text);
+}
+
+.wl-spin {
+    animation: wl-spin 1s linear infinite;
+}
+
+@keyframes wl-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes wl-pulse {
+    50% { background: var(--skeleton-hi); }
+}
+
+@media (max-width: 520px) {
+    .welcome-page {
+        padding: 0;
+        background: var(--bg-raised);
+    }
+
+    .wl-card {
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        min-height: 100dvh;
+        padding-top: calc(18px + env(safe-area-inset-top, 0px));
+        padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .wl-people {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wl-spin,
+    .wl-skel {
+        animation: none;
+    }
+
+    .wl-progress-bar span {
+        transition: none;
+    }
+}
