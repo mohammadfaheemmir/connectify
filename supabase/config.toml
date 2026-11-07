@@ -1,0 +1,26 @@
+# Supabase project settings managed from this repo.
+#
+# Only the settings listed here are pushed. `supabase config push` leaves
+# every setting this file doesn't declare unchanged on the project.
+#
+# Apply with:
+#   npx supabase config push --remote=dmpjmzsgfcnkwxghuhol
+# Preview first with:
+#   npx supabase config diff --remote=dmpjmzsgfcnkwxghuhol
+
+project_id = "connectify"
+
+[auth]
+# Where links in confirmation, password-reset and sign-in emails send people.
+site_url = "https://connectifysocialmedia.netlify.app"
+
+# Other addresses those links may return to: the live site, Netlify deploy
+# previews, and the local dev server.
+additional_redirect_urls = [
+  "https://connectifysocialmedia.netlify.app/**",
+  "https://deploy-preview-*--connectifysocialmedia.netlify.app/**",
+  "http://localhost:5173/**",
+]
+
+# Matches the 8-character rule the app enforces on signup and password change.
+minimum_password_length = 8
