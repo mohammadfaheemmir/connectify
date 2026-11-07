@@ -590,3 +590,13 @@ a.notif-text::after {
         transition: none;
     }
 }
+
+/* The avatar links to the person's profile and sits above the row link. */
+.notif-avatar .avatar-link {
+    position: relative;
+    z-index: 1;
+}
+
+.notif-type {
+    z-index: 2;
+}

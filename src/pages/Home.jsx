@@ -10,6 +10,7 @@ import PostCard from '../components/PostCard'
 import PostSkeleton from '../components/PostSkeleton'
 import Composer from '../components/Composer'
 import Avatar from '../components/Avatar'
+import ProfileLink from '../components/ProfileLink'
 import {
     createPost,
     deletePost,
@@ -338,11 +339,13 @@ function Home() {
                         <ul className="suggestion-list">
                             {suggestions.map((person) => (
                                 <li key={person.id}>
-                                    <Avatar profile={person} size={38} />
-                                    <span className="suggestion-text">
-                                        <strong>{person.full_name || person.username}</strong>
-                                        {person.username && <span>@{person.username}</span>}
-                                    </span>
+                                    <ProfileLink profile={person} className="suggestion-link">
+                                        <Avatar profile={person} size={38} />
+                                        <span className="suggestion-text">
+                                            <strong>{person.full_name || person.username}</strong>
+                                            {person.username && <span>@{person.username}</span>}
+                                        </span>
+                                    </ProfileLink>
                                 </li>
                             ))}
                         </ul>
