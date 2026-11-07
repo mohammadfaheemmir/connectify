@@ -1,98 +1,238 @@
 
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Mail, Lock, ArrowRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import AuthLayout from '../components/AuthLayout'
+import AuthField from '../components/AuthField'
+import SocialButtons from '../components/SocialButtons'
+import CheckInbox from '../components/CheckInbox'
+import { useCaptcha } from '../components/useCaptcha'
+import { getAuthMessage } from '../lib/authErrors'
+import { getFromPath, hasAccountOnDevice } from '../lib/authFlow'
+import { markAuthPending, track, trackAuthView } from '../lib/analytics'
 import './AuthPages.css'
 
+const ERROR_ID = 'login-error'
+
 function Login() {
-    const { login } = useAuth()
+    const { login, sendMagicLink, resendConfirmation } = useAuth()
     const navigate = useNavigate()
+    const location = useLocation()
+    const fromPath = getFromPath(location)
+    const captcha = useCaptcha()
+
+    const emailRef = useRef(null)
+    const passwordRef = useRef(null)
+    const startedRef = useRef(false)
 
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
-    const [showPassword, setShowPassword] = useState(false)
-    const [error, setError] = useState('')
+    const [error, setError] = useState(null) // { message, action, field }
     const [loading, setLoading] = useState(false)
+    const [sent, setSent] = useState(null) // 'magic' | 'confirm'
+
+    useEffect(() => {
+        trackAuthView('login', hasAccountOnDevice())
+    }, [])
+
+    const handleStart = () => {
+        if (startedRef.current) return
+        startedRef.current = true
+        track('auth_start', { method: 'password', page: 'login' })
+    }
+
+    const showError = (err, field = 'password') => {
+        setError({ ...err, field })
+        const ref = field === 'email' ? emailRef : passwordRef
+        requestAnimationFrame(() => ref.current?.focus())
+    }
 
     const handleLogin = async (e) => {
         e.preventDefault()
-        setError('')
+        setError(null)
         setLoading(true)
+        track('auth_submit', { method: 'password' })
 
         try {
-            const { error } = await login(email, password)
+            markAuthPending('password')
+            const captchaToken = await captcha.getToken()
+            const { error: authError } = await login(email, password, captchaToken)
 
-            if (error) {
-                setError(error.message)
+            if (authError) {
+                track('auth_error', { method: 'password', code: authError.code ?? 'unknown' })
+                const mapped = getAuthMessage(authError, 'signin')
+                showError(mapped, mapped.action === 'resend' ? 'email' : 'password')
                 return
             }
 
-            navigate('/')
+            navigate(fromPath, { replace: true })
         } catch {
-            setError('Something went wrong. Please try again.')
+            showError(getAuthMessage(null, 'signin'))
         } finally {
+            captcha.reset()
             setLoading(false)
         }
     }
 
-    return (
-        <AuthLayout
-            title="Welcome back"
-            subtitle="Enter your details to access your Connectify account."
-            footer={
-                <p className="auth-switch">
-                    Don't have an account?{' '}
-                    <Link to="/signup">Create account</Link>
-                </p>
-            }
+    const requestEmail = async (kind) => {
+        if (!email) {
+            showError({ message: 'Enter your email address first.' }, 'email')
+            return null
+        }
+        const captchaToken = await captcha.getToken()
+        const { error: emailError } = kind === 'magic'
+            ? await sendMagicLink(email, fromPath, captchaToken)
+            : await resendConfirmation(email, captchaToken)
+        captcha.reset()
+        if (emailError) {
+            track('auth_error', { method: kind, code: emailError.code ?? 'unknown' })
+            return getAuthMessage(emailError, 'email').message
+        }
+        return null
+    }
+
+    const handleMagicLink = async () => {
+        setError(null)
+        track('auth_start', { method: 'magic_link', page: 'login' })
+        markAuthPending('magic_link')
+        setLoading(true)
+        const message = await requestEmail('magic')
+        setLoading(false)
+        if (message) showError({ message }, 'email')
+        else if (email) setSent('magic')
+    }
+
+    const handleResendConfirmation = async () => {
+        setError(null)
+        setLoading(true)
+        const message = await requestEmail('confirm')
+        setLoading(false)
+        if (message) showError({ message }, 'email')
+        else setSent('confirm')
+    }
+
+    const footer = (
+        <div className="auth-switch-block">
+            <p className="auth-switch">New to Connectify?</p>
+            <Link to="/signup" state={location.state} className="auth-secondary">
+                Create an account
+            </Link>
+        </div>
+    )
+
+    if (sent) {
+        return (
+            <AuthLayout title="Check your inbox">
+                <CheckInbox
+                    email={email}
+                    onResend={() => requestEmail(sent)}
+                    onBack={() => setSent(null)}
+                    backLabel="Back to sign in"
+                >
+                    {sent === 'magic'
+                        ? 'Open it on this device to sign in.'
+                        : 'Open it to confirm your account, then sign in.'}
+                </CheckInbox>
+                {captcha.element}
+            </AuthLayout>
+        )
+    }
+
+    const errorAction = error?.action === 'reset' ? (
+        <Link
+            className="auth-error-action"
+            to="/forgot-password"
+            state={{ email, from: location.state?.from }}
         >
+            Reset your password
+        </Link>
+    ) : error?.action === 'resend' ? (
+        <button
+            type="button"
+            className="auth-text-button auth-error-action"
+            onClick={handleResendConfirmation}
+            disabled={loading}
+        >
+            Resend the confirmation link
+        </button>
+    ) : null
+
+    return (
+        <AuthLayout title="Welcome back" footer={footer}>
+            <SocialButtons
+                fromPath={fromPath}
+                onError={(message) => setError({ message })}
+            />
+
             <form onSubmit={handleLogin} className="auth-form">
+                <AuthField
+                    ref={emailRef}
+                    id="login-email"
+                    name="email"
+                    label="Email address"
+                    icon={Mail}
+                    type="email"
+                    autoComplete="username"
+                    inputMode="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onFocus={handleStart}
+                    placeholder="you@example.com"
+                    invalid={error?.field === 'email'}
+                    errorId={ERROR_ID}
+                />
 
-                <div className="auth-field">
-                    <label>Email address</label>
-                    <div className="auth-input-wrap">
-                        <Mail size={19} />
-                        <input
-                            type="email"
-                            required
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="you@example.com"
-                        />
-                    </div>
-                </div>
-
-                <div className="auth-field">
-                    <label>Password</label>
-                    <div className="auth-input-wrap">
-                        <Lock size={19} />
-                        <input
-                            type={showPassword ? 'text' : 'password'}
-                            required
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Enter your password"
-                        />
-                        <button
-                            type="button"
-                            className="password-toggle"
-                            onClick={() => setShowPassword(!showPassword)}
-                            aria-label="Toggle password visibility"
+                <AuthField
+                    ref={passwordRef}
+                    id="login-password"
+                    name="password"
+                    label="Password"
+                    icon={Lock}
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onFocus={handleStart}
+                    placeholder="Enter your password"
+                    invalid={error?.field === 'password'}
+                    errorId={ERROR_ID}
+                    labelAction={
+                        <Link
+                            to="/forgot-password"
+                            state={{ email, from: location.state?.from }}
                         >
-                            {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
-                        </button>
-                    </div>
-                </div>
+                            Forgot password?
+                        </Link>
+                    }
+                />
 
-                {error && <p className="auth-error">{error}</p>}
+                {error && (
+                    <div id={ERROR_ID} className="auth-error" role="alert">
+                        {error.message}
+                        {errorAction}
+                    </div>
+                )}
+
+                {captcha.element}
 
                 <button type="submit" className="auth-submit" disabled={loading}>
-                    {loading ? 'Signing in...' : 'Sign in'}
-                    {!loading && <ArrowRight size={19} />}
+                    {loading ? 'Signing in…' : 'Sign in'}
+                    {!loading && <ArrowRight size={19} aria-hidden="true" />}
                 </button>
 
+                <button
+                    type="button"
+                    className="auth-secondary"
+                    onClick={handleMagicLink}
+                    disabled={loading}
+                >
+                    Email me a sign-in link
+                </button>
             </form>
         </AuthLayout>
     )

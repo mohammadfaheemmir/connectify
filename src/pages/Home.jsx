@@ -1,512 +1,371 @@
 
-import { useEffect, useState } from 'react'
-import {
-    Search,
-    ImagePlus,
-    Send,
-    Bell,
-    Users,
-    TrendingUp,
-    LoaderCircle,
-    X,
-} from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { ArrowUp, Bell, ImagePlus, LoaderCircle, RotateCw, Search, Settings, UserPlus } from 'lucide-react'
 
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Sidebar from '../components/Sidebar'
 import PostCard from '../components/PostCard'
+import PostSkeleton from '../components/PostSkeleton'
+import Composer from '../components/Composer'
+import Avatar from '../components/Avatar'
+import {
+    createPost,
+    deletePost,
+    fetchFeedPage,
+    fetchMyProfile,
+    fetchNewerPosts,
+    fetchSuggestions,
+    fetchUnreadNotificationCount,
+    setLiked,
+} from '../lib/feedApi'
 import './Home.css'
+
+const TOAST_MS = 4000
 
 function Home() {
     const { user, logout } = useAuth()
+    const userId = user?.id
 
     const [posts, setPosts] = useState([])
-    const [likedPosts, setLikedPosts] = useState([])
-    const [caption, setCaption] = useState('')
-    const [selectedImage, setSelectedImage] = useState(null)
-    const [preview, setPreview] = useState('')
-    const [loading, setLoading] = useState(true)
-    const [uploading, setUploading] = useState(false)
-    const [error, setError] = useState('')
-    const [success, setSuccess] = useState('')
+    const [status, setStatus] = useState('loading') // loading | ready | error
+    const [hasMore, setHasMore] = useState(false)
+    const [loadingMore, setLoadingMore] = useState(false)
+    const [newPostCount, setNewPostCount] = useState(0)
 
-    useEffect(() => {
-        if (user?.id) {
-            fetchPosts()
+    const [myProfile, setMyProfile] = useState(null)
+    const [unread, setUnread] = useState(0)
+    const [suggestions, setSuggestions] = useState([])
+
+    const [toast, setToast] = useState(null)
+    const toastTimer = useRef(null)
+    const pendingLikes = useRef(new Set())
+    const sentinelRef = useRef(null)
+    const composerOpenRef = useRef(null)
+
+    const showToast = useCallback((text, tone = 'info') => {
+        clearTimeout(toastTimer.current)
+        setToast({ text, tone, id: Date.now() })
+        toastTimer.current = setTimeout(() => setToast(null), TOAST_MS)
+    }, [])
+
+    useEffect(() => () => clearTimeout(toastTimer.current), [])
+
+    // ---- Initial load -----------------------------------------------------
+
+    const loadFirstPage = useCallback(async () => {
+        if (!userId) return
+        try {
+            const page = await fetchFeedPage(userId)
+            setPosts(page.posts)
+            setHasMore(page.hasMore)
+            setNewPostCount(0)
+            setStatus('ready')
+        } catch {
+            setStatus('error')
         }
-    }, [user?.id])
+    }, [userId])
 
     useEffect(() => {
+        loadFirstPage()
+    }, [loadFirstPage])
+
+    useEffect(() => {
+        if (!userId) return
+        let active = true
+        fetchMyProfile(userId).then((p) => active && setMyProfile(p)).catch(() => {})
+        fetchUnreadNotificationCount(userId).then((n) => active && setUnread(n)).catch(() => {})
+        fetchSuggestions(userId).then((s) => active && setSuggestions(s)).catch(() => {})
         return () => {
-            if (preview) URL.revokeObjectURL(preview)
+            active = false
         }
-    }, [preview])
+    }, [userId])
 
-    // Fetch posts, profiles and likes
-    const fetchPosts = async () => {
-        if (!user?.id) return
+    // Fall back to sign-up details until the profile row has loaded.
+    const me = myProfile ?? {
+        id: userId,
+        full_name: user?.user_metadata?.full_name,
+        username: null,
+        avatar_url: null,
+    }
 
-        setLoading(true)
-        setError('')
+    // ---- Pagination -------------------------------------------------------
 
+    const loadMore = useCallback(async () => {
+        if (loadingMore || !hasMore || posts.length === 0) return
+        setLoadingMore(true)
         try {
-            const { data: postData, error: postError } = await supabase
-                .from('posts')
-                .select('*')
-                .order('created_at', { ascending: false })
-
-            if (postError) throw postError
-
-            const userIds = [
-                ...new Set((postData || []).map(post => post.user_id)),
-            ]
-
-            let profiles = []
-            let likes = []
-
-            if (userIds.length > 0) {
-                const [profileResult, likeResult] = await Promise.all([
-                    supabase
-                        .from('profiles')
-                        .select('id, full_name, username, avatar_url')
-                        .in('id', userIds),
-
-                    supabase
-                        .from('likes')
-                        .select('post_id, user_id')
-                        .in('post_id', postData.map(post => post.id)),
-                ])
-
-                if (profileResult.error) throw profileResult.error
-                if (likeResult.error) throw likeResult.error
-
-                profiles = profileResult.data || []
-                likes = likeResult.data || []
-            }
-
-            const formattedPosts = (postData || []).map(post => ({
-                ...post,
-                profile: profiles.find(
-                    profile => profile.id === post.user_id
-                ),
-                likeCount: likes.filter(
-                    like => like.post_id === post.id
-                ).length,
-            }))
-
-            setPosts(formattedPosts)
-
-            setLikedPosts(
-                likes
-                    .filter(like => like.user_id === user.id)
-                    .map(like => like.post_id)
-            )
-        } catch (err) {
-            setError(err.message || 'Unable to load posts.')
+            const page = await fetchFeedPage(userId, posts[posts.length - 1].created_at)
+            setPosts((list) => {
+                const ids = new Set(list.map((p) => p.id))
+                return [...list, ...page.posts.filter((p) => !ids.has(p.id))]
+            })
+            setHasMore(page.hasMore)
+        } catch {
+            showToast('Couldn’t load more posts. Try again.', 'error')
         } finally {
-            setLoading(false)
+            setLoadingMore(false)
+        }
+    }, [loadingMore, hasMore, posts, userId, showToast])
+
+    useEffect(() => {
+        const el = sentinelRef.current
+        if (!el || !hasMore) return
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) loadMore()
+            },
+            { rootMargin: '600px 0px' }
+        )
+        observer.observe(el)
+        return () => observer.disconnect()
+    }, [hasMore, loadMore])
+
+    // ---- New posts from other people ---------------------------------------
+
+    useEffect(() => {
+        if (!userId) return
+        const channel = supabase
+            .channel(`feed-${userId}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
+                if (payload.new.user_id !== userId) setNewPostCount((n) => n + 1)
+            })
+            .subscribe()
+        return () => {
+            supabase.removeChannel(channel)
+        }
+    }, [userId])
+
+    const showNewPosts = async () => {
+        const newest = posts[0]?.created_at
+        try {
+            const fresh = newest ? await fetchNewerPosts(userId, newest) : []
+            setPosts((list) => {
+                const ids = new Set(list.map((p) => p.id))
+                return [...fresh.filter((p) => !ids.has(p.id)), ...list]
+            })
+            setNewPostCount(0)
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+        } catch {
+            showToast('Couldn’t load new posts. Try again.', 'error')
         }
     }
 
-    // Handle image selection
-    const handleImageChange = (e) => {
-        const file = e.target.files?.[0]
+    // ---- Actions ------------------------------------------------------------
 
-        if (!file) return
-
-        if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
-            setError('Please select a JPG, PNG, WEBP or GIF image.')
-            e.target.value = ''
-            return
+    const handleCreate = async ({ caption, file }) => {
+        try {
+            const post = await createPost(userId, { caption, file })
+            setPosts((list) => [{ ...post, profile: post.profile ?? myProfile }, ...list])
+            showToast('Posted.')
+            return null
+        } catch (err) {
+            if (err?.code === '23502' && !file) {
+                return { error: 'Posts need a photo for now. Add one and try again.' }
+            }
+            return { error: 'Your post wasn’t published. Check your connection and try again.' }
         }
-
-        if (file.size > 5 * 1024 * 1024) {
-            setError('Image size must be less than 5 MB.')
-            e.target.value = ''
-            return
-        }
-
-        setError('')
-        setSelectedImage(file)
-        setPreview(URL.createObjectURL(file))
     }
 
-    // Remove selected image
-    const removeImage = () => {
-        setSelectedImage(null)
-        setPreview('')
-    }
+    const updatePost = (id, patch) =>
+        setPosts((list) => list.map((p) => (p.id === id ? { ...p, ...patch(p) } : p)))
 
-    // Create a new post
-    const handleCreatePost = async (e) => {
-        e.preventDefault()
+    const toggleLike = async (post) => {
+        if (pendingLikes.current.has(post.id)) return
+        pendingLikes.current.add(post.id)
 
-        if (!selectedImage) {
-            setError('Please select an image for your post.')
-            return
-        }
-
-        setUploading(true)
-        setError('')
-        setSuccess('')
-
-        let uploadedFilePath = null
+        const nextLiked = !post.liked
+        updatePost(post.id, (p) => ({ liked: nextLiked, likeCount: p.likeCount + (nextLiked ? 1 : -1) }))
 
         try {
-            const filePath = `${user.id}/${crypto.randomUUID()}-${selectedImage.name}`
-
-            const { error: uploadError } = await supabase.storage
-                .from('post-images')
-                .upload(filePath, selectedImage)
-
-            if (uploadError) throw uploadError
-
-            uploadedFilePath = filePath
-
-            const { data: imageData } = supabase.storage
-                .from('post-images')
-                .getPublicUrl(filePath)
-
-            const { error: insertError } = await supabase
-                .from('posts')
-                .insert({
-                    user_id: user.id,
-                    caption: caption.trim(),
-                    image_url: imageData.publicUrl,
-                })
-
-            if (insertError) throw insertError
-
-            setCaption('')
-            setSelectedImage(null)
-            setPreview('')
-            setSuccess('Your post has been published!')
-
-            await fetchPosts()
-        } catch (err) {
-            // Remove uploaded image if post creation fails
-            if (uploadedFilePath) {
-                const { error: cleanupError } = await supabase.storage
-                    .from('post-images')
-                    .remove([uploadedFilePath])
-
-                if (cleanupError) {
-                    console.error('Image cleanup failed:', cleanupError)
-                }
-            }
-
-            setError(err.message || 'Unable to publish your post.')
+            await setLiked(userId, post.id, nextLiked)
+        } catch {
+            updatePost(post.id, (p) => ({ liked: !nextLiked, likeCount: p.likeCount + (nextLiked ? -1 : 1) }))
+            showToast('Couldn’t update your like. Try again.', 'error')
         } finally {
-            setUploading(false)
+            pendingLikes.current.delete(post.id)
         }
     }
 
-    // Delete your own post
-    const handleDeletePost = async (postId) => {
-        setError('')
-        setSuccess('')
-
-        const postToDelete = posts.find(post => post.id === postId)
-
-        if (!postToDelete || postToDelete.user_id !== user?.id) {
-            setError('You can only delete your own posts.')
-            return
-        }
-
+    const handleDelete = async (post) => {
         try {
-            // Delete the post from the database
-            const { data, error: deleteError } = await supabase
-                .from('posts')
-                .delete()
-                .eq('id', postId)
-                .eq('user_id', user.id)
-                .select('id')
-
-            if (deleteError) throw deleteError
-
-            if (!data || data.length === 0) {
-                throw new Error('Unable to delete this post. Check your permissions.')
-            }
-
-            // Remove the post from the feed
-            setPosts(previous =>
-                previous.filter(post => post.id !== postId)
-            )
-
-            setLikedPosts(previous =>
-                previous.filter(id => id !== postId)
-            )
-
-            // Remove the image from Supabase Storage
-            if (postToDelete.image_url) {
-                const storagePrefix =
-                    '/storage/v1/object/public/post-images/'
-
-                const imageUrl = new URL(postToDelete.image_url)
-
-                if (imageUrl.pathname.includes(storagePrefix)) {
-                    const encodedPath = imageUrl.pathname.split(storagePrefix)[1]
-                    const imagePath = decodeURIComponent(encodedPath)
-
-                    const { error: storageError } = await supabase.storage
-                        .from('post-images')
-                        .remove([imagePath])
-
-                    if (storageError) {
-                        console.error('Image cleanup failed:', storageError)
-                        setError('Post deleted, but its image could not be removed from storage.')
-                        return
-                    }
-                }
-            }
-
-            setSuccess('Post deleted successfully.')
-        } catch (err) {
-            setError(err.message || 'Unable to delete post.')
+            await deletePost(userId, post)
+            setPosts((list) => list.filter((p) => p.id !== post.id))
+            showToast('Post deleted.')
+            return true
+        } catch {
+            showToast('Couldn’t delete the post. Try again.', 'error')
+            return false
         }
     }
 
-    // Like or unlike a post
-    const handleLike = async (postId) => {
-        const alreadyLiked = likedPosts.includes(postId)
+    const changeCommentCount = (postId, delta) =>
+        updatePost(postId, (p) => ({ commentCount: Math.max(0, p.commentCount + delta) }))
 
-        setError('')
+    // ---- Render -------------------------------------------------------------
 
-        if (alreadyLiked) {
-            const { error } = await supabase
-                .from('likes')
-                .delete()
-                .eq('post_id', postId)
-                .eq('user_id', user.id)
-
-            if (error) {
-                setError(error.message)
-                return
-            }
-
-            setLikedPosts(previous =>
-                previous.filter(id => id !== postId)
-            )
-
-            setPosts(previous =>
-                previous.map(post =>
-                    post.id === postId
-                        ? { ...post, likeCount: post.likeCount - 1 }
-                        : post
-                )
-            )
-        } else {
-            const { error } = await supabase
-                .from('likes')
-                .insert({
-                    post_id: postId,
-                    user_id: user.id,
-                })
-
-            if (error) {
-                setError(error.message)
-                return
-            }
-
-            setLikedPosts(previous => [...previous, postId])
-
-            setPosts(previous =>
-                previous.map(post =>
-                    post.id === postId
-                        ? { ...post, likeCount: post.likeCount + 1 }
-                        : post
-                )
+    const renderFeed = () => {
+        if (status === 'loading') {
+            return (
+                <div className="posts-list" aria-busy="true" aria-label="Loading posts">
+                    <PostSkeleton />
+                    <PostSkeleton withImage={false} />
+                    <PostSkeleton />
+                </div>
             )
         }
+
+        if (status === 'error') {
+            return (
+                <div className="feed-state">
+                    <h2>We couldn’t load your feed</h2>
+                    <p>Check your connection and try again.</p>
+                    <button
+                        type="button"
+                        className="button-secondary"
+                        onClick={() => {
+                            setStatus('loading')
+                            loadFirstPage()
+                        }}
+                    >
+                        <RotateCw size={16} aria-hidden="true" /> Try again
+                    </button>
+                </div>
+            )
+        }
+
+        if (posts.length === 0) {
+            return (
+                <div className="feed-state">
+                    <div className="feed-state-icon"><ImagePlus size={30} aria-hidden="true" /></div>
+                    <h2>Nothing here yet</h2>
+                    <p>Share your first post, or add friends to see what they’re up to.</p>
+                    <div className="feed-state-actions">
+                        <button type="button" className="button-primary" onClick={() => composerOpenRef.current?.()}>
+                            Create a post
+                        </button>
+                        <Link to="/friends" className="button-secondary">
+                            <UserPlus size={16} aria-hidden="true" /> Find friends
+                        </Link>
+                    </div>
+                </div>
+            )
+        }
+
+        return (
+            <>
+                <div className="posts-list">
+                    {posts.map((post) => (
+                        <PostCard
+                            key={post.id}
+                            post={post}
+                            myProfile={me}
+                            onToggleLike={toggleLike}
+                            onDelete={handleDelete}
+                            onCommentCountChange={changeCommentCount}
+                            onError={(text) => showToast(text, 'error')}
+                        />
+                    ))}
+                </div>
+
+                <div ref={sentinelRef} className="feed-end">
+                    {hasMore ? (
+                        <button type="button" className="button-secondary" onClick={loadMore} disabled={loadingMore}>
+                            {loadingMore && <LoaderCircle size={16} className="spin" aria-hidden="true" />}
+                            {loadingMore ? 'Loading…' : 'Load more posts'}
+                        </button>
+                    ) : (
+                        <p>You’re all caught up.</p>
+                    )}
+                </div>
+            </>
+        )
     }
 
     return (
         <div className="home-layout">
-
             <Sidebar onLogout={logout} />
 
             <main className="feed-area">
-
                 <header className="feed-header">
-                    <div>
-                        <h1>Home Feed</h1>
-                        <p>Stay connected with your world.</p>
-                    </div>
-
+                    <h1>Home</h1>
                     <div className="feed-header-actions">
-                        <button type="button" className="header-icon">
-                            <Search size={20} />
-                        </button>
-                        <button type="button" className="header-icon">
-                            <Bell size={20} />
-                        </button>
+                        <Link to="/explore" className="header-icon" aria-label="Search and explore">
+                            <Search size={20} aria-hidden="true" />
+                        </Link>
+                        <Link
+                            to="/notifications"
+                            className="header-icon"
+                            aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
+                        >
+                            <Bell size={20} aria-hidden="true" />
+                            {unread > 0 && <span className="header-badge" aria-hidden="true">{unread > 9 ? '9+' : unread}</span>}
+                        </Link>
                     </div>
                 </header>
 
                 <section className="feed-content">
+                    <Composer profile={me} onSubmit={handleCreate} openRef={composerOpenRef} />
 
-                    <div className="welcome-banner">
-                        <div>
-                            <span>YOUR SOCIAL SPACE</span>
-                            <h2>What's happening today?</h2>
-                            <p>Share a moment with your Connectify community.</p>
-                        </div>
-                        <Users size={48} />
-                    </div>
-
-                    <section className="create-post-card">
-                        <div className="create-post-heading">
-                            <div className="current-avatar">
-                                {(user?.user_metadata?.full_name || user?.email || 'U')
-                                    .charAt(0).toUpperCase()}
-                            </div>
-
-                            <div>
-                                <h3>Create a post</h3>
-                                <p>Share something with your friends</p>
-                            </div>
-                        </div>
-
-                        <form onSubmit={handleCreatePost}>
-                            <textarea
-                                value={caption}
-                                onChange={e => setCaption(e.target.value)}
-                                placeholder="What's on your mind?"
-                                rows={3}
-                                maxLength={1000}
-                            />
-
-                            {preview && (
-                                <div className="image-preview">
-                                    <img src={preview} alt="Post preview" />
-                                    <button
-                                        type="button"
-                                        onClick={removeImage}
-                                        aria-label="Remove selected image"
-                                    >
-                                        <X size={18} />
-                                    </button>
-                                </div>
-                            )}
-
-                            <div className="create-post-footer">
-                                <label className="upload-image-button">
-                                    <ImagePlus size={20} />
-                                    <span>Add photo</span>
-                                    <input
-                                        type="file"
-                                        accept="image/jpeg,image/png,image/webp,image/gif"
-                                        onChange={handleImageChange}
-                                        hidden
-                                    />
-                                </label>
-
-                                <button
-                                    type="submit"
-                                    className="publish-button"
-                                    disabled={uploading || !selectedImage}
-                                >
-                                    {uploading ? (
-                                        <LoaderCircle size={18} className="spin" />
-                                    ) : (
-                                        <Send size={17} />
-                                    )}
-                                    {uploading ? 'Publishing...' : 'Publish'}
-                                </button>
-                            </div>
-                        </form>
-                    </section>
-
-                    {error && (
-                        <div className="feed-message error-message">
-                            {error}
-                        </div>
-                    )}
-
-                    {success && (
-                        <div className="feed-message success-message">
-                            {success}
-                        </div>
-                    )}
-
-                    <div className="feed-section-heading">
-                        <h2>Recent posts</h2>
-                        <button type="button" onClick={fetchPosts}>
-                            Refresh
+                    {newPostCount > 0 && (
+                        <button type="button" className="new-posts-pill" onClick={showNewPosts}>
+                            <ArrowUp size={16} aria-hidden="true" />
+                            {newPostCount === 1 ? '1 new post' : `${newPostCount} new posts`}
                         </button>
-                    </div>
-
-                    {loading ? (
-                        <div className="feed-loading">
-                            <LoaderCircle size={30} className="spin" />
-                            <p>Loading your feed...</p>
-                        </div>
-                    ) : posts.length === 0 ? (
-                        <div className="empty-feed">
-                            <ImagePlus size={40} />
-                            <h3>No posts yet</h3>
-                            <p>Be the first to share a moment with your community.</p>
-                        </div>
-                    ) : (
-                        <div className="posts-list">
-                            {posts.map(post => (
-                                <PostCard
-                                    key={post.id}
-                                    post={post}
-                                    liked={likedPosts.includes(post.id)}
-                                    onLike={handleLike}
-                                    onDelete={handleDeletePost}
-                                />
-                            ))}
-                        </div>
                     )}
 
+                    {renderFeed()}
                 </section>
             </main>
 
-            <aside className="right-sidebar">
-
-                <div className="profile-summary">
-                    <div className="current-avatar large">
-                        {(user?.user_metadata?.full_name || user?.email || 'U')
-                            .charAt(0).toUpperCase()}
+            <aside className="right-sidebar" aria-label="Your account and suggestions">
+                <section className="side-card profile-card">
+                    <Avatar profile={me} size={64} />
+                    <h2>{me.full_name || me.username || 'Your profile'}</h2>
+                    {me.username && <p>@{me.username}</p>}
+                    <div className="profile-card-links">
+                        <Link to="/profile" className="button-secondary">View profile</Link>
+                        <Link to="/settings" className="icon-button" aria-label="Settings">
+                            <Settings size={18} />
+                        </Link>
                     </div>
+                </section>
 
-                    <h3>{user?.user_metadata?.full_name || 'Connectify User'}</h3>
-                    <p>{user?.email}</p>
-                    <span>Member of Connectify</span>
-                </div>
+                {suggestions.length > 0 && (
+                    <section className="side-card" aria-labelledby="suggestions-heading">
+                        <h2 id="suggestions-heading" className="side-card-title">People you may know</h2>
+                        <ul className="suggestion-list">
+                            {suggestions.map((person) => (
+                                <li key={person.id}>
+                                    <Avatar profile={person} size={38} />
+                                    <span className="suggestion-text">
+                                        <strong>{person.full_name || person.username}</strong>
+                                        {person.username && <span>@{person.username}</span>}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                        <Link to="/friends" className="side-card-link">
+                            <UserPlus size={16} aria-hidden="true" /> Find and add friends
+                        </Link>
+                    </section>
+                )}
 
-                <div className="trending-card">
-                    <div className="trending-heading">
-                        <TrendingUp size={20} />
-                        <h3>Community</h3>
-                    </div>
-
-                    <p>
-                        Share your moments, connect with new people and make your community grow.
-                    </p>
-
-                    <div className="community-note">
-                        <SparklesIcon />
-                        <span>Your next connection starts here.</span>
-                    </div>
-                </div>
-
-                <p className="sidebar-copyright">
-                    © 2026 Connectify
-                    <br />
-                    Made for meaningful connections.
-                </p>
-
+                <p className="sidebar-copyright">© 2026 Connectify</p>
             </aside>
 
+            {toast && (
+                <div
+                    key={toast.id}
+                    className={`toast ${toast.tone}`}
+                    role={toast.tone === 'error' ? 'alert' : 'status'}
+                >
+                    {toast.text}
+                </div>
+            )}
         </div>
     )
-}
-
-function SparklesIcon() {
-    return <span aria-hidden="true">✦</span>
 }
 
 export default Home

@@ -5,7 +5,7 @@
     grid-template-columns: 1fr 1fr;
     background: #09090f;
     color: #ffffff;
-    font-family: Inter, Arial, sans-serif;
+    font-family: 'Inter Variable', Inter, system-ui, sans-serif;
 }
 
 .auth-brand {
@@ -74,51 +74,54 @@
 }
 
 .brand-features {
+    list-style: none;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
+    gap: 18px;
     margin-top: 38px;
+    max-width: 520px;
 }
 
-.feature-card {
-    padding: 22px 18px;
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.035);
-    transition: 0.3s ease;
+.feature-row {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 14px;
+    align-items: start;
 }
 
-.feature-card:hover {
-    transform: translateY(-5px);
-    background: rgba(255, 255, 255, 0.07);
-    border-color: rgba(167, 139, 250, 0.4);
+.feature-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: rgba(167, 139, 250, 0.12);
+    color: #c4b5fd;
 }
 
-.feature-card h3 {
-    font-size: 16px;
-    margin: 12px 0 5px;
+.feature-row strong {
+    display: block;
+    font-size: 15px;
+    font-weight: 650;
+    margin-bottom: 2px;
 }
 
-.feature-card p {
-    font-size: 13px;
-    color: #85859a;
-    margin: 0;
+.feature-row span span {
+    display: block;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #9a98ad;
 }
 
-.feature-purple {
-    color: #a78bfa;
-}
-
-.feature-blue {
-    color: #60a5fa;
-}
-
-.feature-pink {
-    color: #f472b6;
+.brand-proof {
+    margin-top: 30px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #c4b5fd;
 }
 
 .brand-copyright {
-    color: #666579;
+    color: #8a889c;
     font-size: 13px;
     margin-top: 35px;
 }
@@ -145,16 +148,9 @@
     box-shadow: 0 25px 80px rgba(0, 0, 0, 0.35);
 }
 
-.auth-eyebrow {
-    color: #a78bfa;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 2px;
-}
-
 .auth-heading h2 {
     font-size: 32px;
-    margin: 13px 0 10px;
+    margin: 0 0 10px;
     font-weight: 750;
     letter-spacing: -0.8px;
 }
@@ -163,24 +159,67 @@
     font-size: 14px;
     line-height: 1.7;
     color: #9999aa;
-    margin: 0 0 30px;
+    margin: 0;
+}
+
+.auth-heading {
+    margin-bottom: 28px;
 }
 
 .auth-footer {
     text-align: center;
-    margin-top: 27px;
+    margin-top: 24px;
 }
 
 .auth-legal {
-    color: #666579;
+    color: #8a889c;
     font-size: 12px;
     text-align: center;
     margin-top: 25px;
     line-height: 1.7;
 }
 
+.auth-card .auth-legal {
+    margin-top: 16px;
+}
+
+.auth-legal a {
+    color: #b9b7c9;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.auth-legal a:hover {
+    color: #ffffff;
+}
+
 .mobile-brand {
     display: none;
+}
+
+/* Loading skeleton */
+.auth-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.sk {
+    display: block;
+    border-radius: 10px;
+    background-color: #1a1a27;
+    animation: sk-shimmer 1.4s ease-in-out infinite;
+}
+
+.sk-title { height: 34px; width: 60%; }
+.sk-line { height: 14px; width: 85%; margin-bottom: 10px; }
+.sk-input { height: 54px; }
+.sk-button { height: 54px; margin-top: 6px; }
+
+@keyframes sk-shimmer {
+    0% { background-color: #1a1a27; }
+    50% { background-color: #222232; }
+    100% { background-color: #1a1a27; }
 }
 
 @media (max-width: 1050px) {
@@ -207,35 +246,66 @@
     }
 
     .auth-form-section {
-        padding: 35px 20px;
+        justify-content: flex-start;
+        padding: 28px 20px 35px;
     }
 
     .mobile-brand {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 30px;
-        font-size: 24px;
+        gap: 6px;
+        max-height: 120px;
+        margin-bottom: 22px;
+        text-align: center;
+    }
+
+    .mobile-brand-logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 22px;
         font-weight: 750;
         color: #c4b5fd;
     }
 
-    .mobile-brand svg {
+    .mobile-brand-logo svg {
         color: #a78bfa;
+    }
+
+    .mobile-brand-tagline {
+        font-size: 15px;
+        font-weight: 600;
+        color: #e4e3ee;
+    }
+
+    .mobile-brand-proof {
+        font-size: 13px;
+        color: #a5a3b8;
     }
 
     .auth-card {
         max-width: 470px;
-        padding: 30px 24px;
+        padding: 28px 22px;
     }
 
     .auth-heading h2 {
         font-size: 28px;
+    }
+
+    .auth-heading {
+        margin-bottom: 22px;
     }
 }
 
 @media (max-width: 380px) {
     .auth-card {
         padding: 24px 18px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sk {
+        animation: none;
     }
 }

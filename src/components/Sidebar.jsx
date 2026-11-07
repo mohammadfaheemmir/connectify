@@ -11,8 +11,13 @@ import {
     LogOut,
     Sparkles,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
+import './Sidebar.css';
 
-function Sidebar({ activePage = 'Home', onLogout }) {
+function Sidebar({ onLogout }) {
+    const { user } = useAuth();
+    const unreadNotifications = useUnreadNotifications(user?.id);
     const menuItems = [
         { name: 'Home', icon: Home, path: '/' },
         { name: 'Explore', icon: Compass, path: '/explore' },
@@ -37,19 +42,29 @@ function Sidebar({ activePage = 'Home', onLogout }) {
             <p className="sidebar-label">MENU</p>
 
             <nav className="sidebar-nav">
-                {menuItems.map(({ name, icon: Icon, path }) => (
-                    <NavLink
-                        key={name}
-                        to={path}
-                        end={path === '/'}
-                        className={({ isActive }) =>
-                            `sidebar-link ${isActive ? 'active' : ''}`
-                        }
-                    >
-                        <Icon size={20} />
-                        <span>{name}</span>
-                    </NavLink>
-                ))}
+                {menuItems.map(({ name, icon: Icon, path }) => {
+                    const badge = path === '/notifications' ? unreadNotifications : 0;
+
+                    return (
+                        <NavLink
+                            key={name}
+                            to={path}
+                            end={path === '/'}
+                            className={({ isActive }) =>
+                                `sidebar-link ${isActive ? 'active' : ''}`
+                            }
+                            aria-label={badge > 0 ? `${name}, ${badge} unread` : undefined}
+                        >
+                            <Icon size={20} aria-hidden="true" />
+                            <span>{name}</span>
+                            {badge > 0 && (
+                                <b className="sidebar-badge" aria-hidden="true">
+                                    {badge > 99 ? '99+' : badge}
+                                </b>
+                            )}
+                        </NavLink>
+                    );
+                })}
             </nav>
 
             <div className="sidebar-bottom">

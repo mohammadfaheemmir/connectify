@@ -1,381 +1,264 @@
 
-import { useEffect, useState } from 'react'
-import {
-    Heart,
-    MessageCircle,
-    MoreHorizontal,
-    Send,
-    Trash2,
-    LoaderCircle,
-} from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Heart, LoaderCircle, MessageCircle, Send, Trash2 } from 'lucide-react'
 
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import Avatar from './Avatar'
+import PostMenu from './PostMenu'
+import ConfirmDialog from './ConfirmDialog'
+import { addComment, deleteComment, fetchComments } from '../lib/feedApi'
+import { sizeFromImageUrl } from '../lib/imageUpload'
+import { formatFullDate, formatRelative, plural } from '../lib/relativeTime'
 
-function PostCard({ post, liked, onLike, onDelete }) {
+const CAPTION_PREVIEW = 280
+const MAX_COMMENT = 1000
+
+const nameOf = (profile) => profile?.full_name || profile?.username || 'Connectify user'
+
+function PostCard({ post, myProfile, onToggleLike, onDelete, onCommentCountChange, onError }) {
     const { user } = useAuth()
-
-    const [comments, setComments] = useState([])
-    const [commentText, setCommentText] = useState('')
-    const [showComments, setShowComments] = useState(false)
-    const [loadingComments, setLoadingComments] = useState(false)
-    const [submitting, setSubmitting] = useState(false)
-    const [commentError, setCommentError] = useState('')
-    const [showMenu, setShowMenu] = useState(false)
-    const [deleting, setDeleting] = useState(false)
-
     const isOwner = post.user_id === user?.id
-    const canDelete = isOwner && typeof onDelete === 'function'
+    const authorName = nameOf(post.profile)
 
-    const displayName =
-        post.profile?.full_name ||
-        post.profile?.username ||
-        'Connectify User'
+    const [captionOpen, setCaptionOpen] = useState(false)
+    const [confirmOpen, setConfirmOpen] = useState(false)
+    const [deleting, setDeleting] = useState(false)
+    const [burst, setBurst] = useState(false)
+    const [imageLoaded, setImageLoaded] = useState(false)
 
-    const avatar = post.profile?.avatar_url
+    const [showComments, setShowComments] = useState(false)
+    const [comments, setComments] = useState(null) // null = not loaded
+    const [commentsError, setCommentsError] = useState('')
+    const [commentText, setCommentText] = useState('')
+    const [sendingComment, setSendingComment] = useState(false)
+    const commentInputRef = useRef(null)
 
-    // Fetch comments and their authors
-    const fetchComments = async () => {
-        setLoadingComments(true)
-        setCommentError('')
+    const imageSize = sizeFromImageUrl(post.image_url)
+    const longCaption = (post.caption || '').length > CAPTION_PREVIEW
+    const captionText = longCaption && !captionOpen
+        ? `${post.caption.slice(0, CAPTION_PREVIEW).trimEnd()}…`
+        : post.caption
 
+    const imageAlt = post.caption
+        ? `Photo by ${authorName}: ${post.caption.slice(0, 120)}`
+        : `Photo shared by ${authorName}`
+
+    const loadComments = async () => {
+        setCommentsError('')
         try {
-            const { data: commentData, error } = await supabase
-                .from('comments')
-                .select('*')
-                .eq('post_id', post.id)
-                .order('created_at', { ascending: true })
-
-            if (error) throw error
-
-            const userIds = [
-                ...new Set(commentData.map(comment => comment.user_id)),
-            ]
-
-            let profiles = []
-
-            if (userIds.length > 0) {
-                const { data, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('id, full_name, username, avatar_url')
-                    .in('id', userIds)
-
-                if (profileError) throw profileError
-
-                profiles = data || []
-            }
-
-            const formattedComments = commentData.map(comment => ({
-                ...comment,
-                profile: profiles.find(
-                    profile => profile.id === comment.user_id
-                ),
-            }))
-
-            setComments(formattedComments)
-        } catch (error) {
-            setCommentError(error.message || 'Unable to load comments.')
-        } finally {
-            setLoadingComments(false)
+            setComments(await fetchComments(post.id))
+        } catch {
+            setCommentsError('Couldn’t load comments.')
+            setComments([])
         }
     }
 
-    useEffect(() => {
-        fetchComments()
-    }, [post.id])
+    const toggleComments = () => {
+        const next = !showComments
+        setShowComments(next)
+        if (next && comments === null) loadComments()
+        if (next) requestAnimationFrame(() => commentInputRef.current?.focus({ preventScroll: true }))
+    }
 
-    // Delete your own post
-    const handleDeletePost = async () => {
-        if (!canDelete || deleting) return
+    const handleDoubleClick = () => {
+        if (!post.liked) onToggleLike(post)
+        setBurst(true)
+        setTimeout(() => setBurst(false), 700)
+    }
 
-        const confirmed = window.confirm(
-            'Are you sure you want to delete this post? This action cannot be undone.'
-        )
-
-        if (!confirmed) return
-
+    const handleDelete = async () => {
         setDeleting(true)
-        setShowMenu(false)
-
-        try {
-            await onDelete(post.id)
-        } catch (error) {
-            console.error('Delete post failed:', error)
-        } finally {
-            setDeleting(false)
-        }
+        const ok = await onDelete(post)
+        setDeleting(false)
+        if (ok) setConfirmOpen(false)
     }
 
-    // Add a comment
-    const handleAddComment = async (e) => {
-        e.preventDefault()
-
-        if (!commentText.trim() || submitting) return
-
-        setSubmitting(true)
-        setCommentError('')
-
+    const submitComment = async (event) => {
+        event.preventDefault()
+        const content = commentText.trim()
+        if (!content || sendingComment || content.length > MAX_COMMENT) return
+        setSendingComment(true)
         try {
-            const { error } = await supabase
-                .from('comments')
-                .insert({
-                    post_id: post.id,
-                    user_id: user.id,
-                    content: commentText.trim(),
-                })
-
-            if (error) throw error
-
+            const comment = await addComment(user.id, post.id, content, myProfile)
+            setComments((list) => [...(list ?? []), comment])
             setCommentText('')
-            await fetchComments()
-        } catch (error) {
-            setCommentError(error.message || 'Unable to add comment.')
+            onCommentCountChange(post.id, 1)
+        } catch {
+            onError('Your comment wasn’t posted. Try again.')
         } finally {
-            setSubmitting(false)
+            setSendingComment(false)
         }
     }
 
-    // Delete your own comment
-    const handleDeleteComment = async (commentId) => {
-        const { error } = await supabase
-            .from('comments')
-            .delete()
-            .eq('id', commentId)
-            .eq('user_id', user.id)
-
-        if (error) {
-            setCommentError(error.message || 'Unable to delete comment.')
-            return
+    const removeComment = async (commentId) => {
+        const previous = comments
+        setComments((list) => list.filter((c) => c.id !== commentId))
+        onCommentCountChange(post.id, -1)
+        try {
+            await deleteComment(user.id, commentId)
+        } catch {
+            setComments(previous)
+            onCommentCountChange(post.id, 1)
+            onError('Couldn’t delete that comment. Try again.')
         }
-
-        setComments(previous =>
-            previous.filter(comment => comment.id !== commentId)
-        )
     }
 
     return (
-        <article className="post-card">
-            <div className="post-header">
-                <div className="post-user">
-                    {avatar ? (
-                        <img
-                            src={avatar}
-                            alt={displayName}
-                            className="post-avatar"
-                        />
-                    ) : (
-                        <div className="post-avatar post-avatar-placeholder">
-                            {displayName.charAt(0).toUpperCase()}
-                        </div>
-                    )}
-
-                    <div>
-                        <h3>{displayName}</h3>
-                        <p>{new Date(post.created_at).toLocaleString()}</p>
-                    </div>
+        <article className="post-card" aria-labelledby={`post-${post.id}-author`}>
+            <header className="post-header">
+                <Avatar profile={post.profile} size={42} />
+                <div className="post-meta">
+                    <h3 id={`post-${post.id}-author`}>{authorName}</h3>
+                    <time dateTime={post.created_at} title={formatFullDate(post.created_at)}>
+                        {formatRelative(post.created_at)}
+                    </time>
                 </div>
 
-                {canDelete && (
-                    <div style={{ position: 'relative' }}>
-                        <button
-                            type="button"
-                            className="post-more"
-                            onClick={() => setShowMenu(previous => !previous)}
-                            disabled={deleting}
-                            aria-label="Post options"
-                            aria-expanded={showMenu}
-                            title="Post options"
-                        >
-                            <MoreHorizontal size={22} />
-                        </button>
-
-                        {showMenu && (
-                            <div
-                                style={{
-                                    position: 'absolute',
-                                    top: '35px',
-                                    right: '0',
-                                    zIndex: 10,
-                                    minWidth: '155px',
-                                    padding: '6px',
-                                    background: '#1b1b29',
-                                    border: '1px solid #343448',
-                                    borderRadius: '10px',
-                                    boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-                                }}
-                            >
-                                <button
-                                    type="button"
-                                    onClick={handleDeletePost}
-                                    disabled={deleting}
-                                    style={{
-                                        width: '100%',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '9px',
-                                        padding: '10px',
-                                        color: '#ff6b6b',
-                                        background: 'transparent',
-                                        border: 'none',
-                                        borderRadius: '6px',
-                                        cursor: 'pointer',
-                                        textAlign: 'left',
-                                        fontSize: '14px',
-                                    }}
-                                >
-                                    {deleting ? (
-                                        <LoaderCircle
-                                            size={17}
-                                            className="spin"
-                                        />
-                                    ) : (
-                                        <Trash2 size={17} />
-                                    )}
-
-                                    {deleting ? 'Deleting...' : 'Delete Post'}
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                {isOwner && (
+                    <PostMenu
+                        items={[
+                            { label: 'Delete post', icon: Trash2, danger: true, onSelect: () => setConfirmOpen(true) },
+                        ]}
+                    />
                 )}
-            </div>
+            </header>
 
             {post.caption && (
-                <p className="post-caption">{post.caption}</p>
+                <p className={`post-caption${post.image_url ? '' : ' text-only'}`}>
+                    {captionText}
+                    {longCaption && (
+                        <button type="button" className="link-button" onClick={() => setCaptionOpen((v) => !v)}>
+                            {captionOpen ? ' Show less' : ' See more'}
+                        </button>
+                    )}
+                </p>
             )}
 
             {post.image_url && (
-                <img
-                    src={post.image_url}
-                    alt="Shared post"
-                    className="post-image"
-                />
+                <figure
+                    className={`post-figure${imageLoaded ? ' loaded' : ''}${imageSize ? ' sized' : ''}`}
+                    onDoubleClick={handleDoubleClick}
+                >
+                    <img
+                        src={post.image_url}
+                        alt={imageAlt}
+                        loading="lazy"
+                        decoding="async"
+                        width={imageSize?.width}
+                        height={imageSize?.height}
+                        style={imageSize ? { aspectRatio: `${imageSize.width} / ${imageSize.height}` } : undefined}
+                        onLoad={() => setImageLoaded(true)}
+                    />
+                    {burst && (
+                        <span className="like-burst" aria-hidden="true">
+                            <Heart size={84} fill="currentColor" />
+                        </span>
+                    )}
+                </figure>
             )}
 
             <div className="post-actions">
                 <button
                     type="button"
-                    className={`post-action ${liked ? 'liked' : ''}`}
-                    onClick={() => onLike(post.id)}
-                    aria-label={liked ? 'Unlike post' : 'Like post'}
+                    className={`post-action${post.liked ? ' liked' : ''}`}
+                    onClick={() => onToggleLike(post)}
+                    aria-pressed={post.liked}
+                    aria-label={`${post.liked ? 'Unlike' : 'Like'} post. ${plural(post.likeCount, 'like')}`}
                 >
-                    <Heart
-                        size={21}
-                        fill={liked ? 'currentColor' : 'none'}
-                    />
-                    <span>{post.likeCount || 0} Likes</span>
+                    <Heart size={20} fill={post.liked ? 'currentColor' : 'none'} aria-hidden="true" />
+                    <span aria-hidden="true">{plural(post.likeCount, 'like')}</span>
                 </button>
 
                 <button
                     type="button"
-                    className="post-action"
-                    onClick={() => setShowComments(previous => !previous)}
+                    className={`post-action${showComments ? ' active' : ''}`}
+                    onClick={toggleComments}
+                    aria-expanded={showComments}
+                    aria-controls={`post-${post.id}-comments`}
                 >
-                    <MessageCircle size={21} />
-                    <span>{comments.length} Comments</span>
+                    <MessageCircle size={20} aria-hidden="true" />
+                    <span>{plural(post.commentCount, 'comment')}</span>
                 </button>
             </div>
 
             {showComments && (
-                <section className="comments-section">
-                    <h4>Comments</h4>
-
-                    {loadingComments ? (
-                        <div className="comments-loading">
-                            <LoaderCircle size={20} className="spin" />
-                            <span>Loading comments...</span>
-                        </div>
-                    ) : comments.length === 0 ? (
-                        <p className="no-comments">
-                            No comments yet. Be the first to comment!
+                <section className="comments" id={`post-${post.id}-comments`} aria-label="Comments">
+                    {comments === null ? (
+                        <p className="comments-note" role="status">
+                            <LoaderCircle size={16} className="spin" aria-hidden="true" /> Loading comments…
                         </p>
+                    ) : commentsError ? (
+                        <p className="comments-note">
+                            {commentsError}{' '}
+                            <button type="button" className="link-button" onClick={loadComments}>Try again</button>
+                        </p>
+                    ) : comments.length === 0 ? (
+                        <p className="comments-note">No comments yet. Start the conversation.</p>
                     ) : (
-                        <div className="comments-list">
-                            {comments.map(comment => {
-                                const name =
-                                    comment.profile?.full_name ||
-                                    comment.profile?.username ||
-                                    'Connectify User'
-
-                                return (
-                                    <div
-                                        className="comment-item"
-                                        key={comment.id}
-                                    >
-                                        {comment.profile?.avatar_url ? (
-                                            <img
-                                                src={comment.profile.avatar_url}
-                                                alt={name}
-                                                className="comment-avatar"
-                                            />
-                                        ) : (
-                                            <div className="comment-avatar comment-avatar-placeholder">
-                                                {name.charAt(0).toUpperCase()}
-                                            </div>
-                                        )}
-
-                                        <div className="comment-content">
-                                            <div className="comment-author-row">
-                                                <strong>{name}</strong>
-
-                                                <span>
-                                                    {new Date(
-                                                        comment.created_at
-                                                    ).toLocaleString()}
-                                                </span>
-                                            </div>
-
-                                            <p>{comment.content}</p>
+                        <ul className="comment-list">
+                            {comments.map((comment) => (
+                                <li key={comment.id} className="comment">
+                                    <Avatar profile={comment.profile} size={32} />
+                                    <div className="comment-bubble">
+                                        <div className="comment-head">
+                                            <strong>{nameOf(comment.profile)}</strong>
+                                            <time dateTime={comment.created_at} title={formatFullDate(comment.created_at)}>
+                                                {formatRelative(comment.created_at)}
+                                            </time>
                                         </div>
-
-                                        {comment.user_id === user?.id && (
-                                            <button
-                                                type="button"
-                                                className="delete-comment-button"
-                                                onClick={() =>
-                                                    handleDeleteComment(comment.id)
-                                                }
-                                                aria-label="Delete comment"
-                                                title="Delete comment"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        )}
+                                        <p>{comment.content}</p>
                                     </div>
-                                )
-                            })}
-                        </div>
+                                    {comment.user_id === user?.id && (
+                                        <button
+                                            type="button"
+                                            className="icon-button small"
+                                            onClick={() => removeComment(comment.id)}
+                                            aria-label="Delete your comment"
+                                            title="Delete comment"
+                                        >
+                                            <Trash2 size={15} />
+                                        </button>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
                     )}
 
-                    {commentError && (
-                        <p className="comment-error">{commentError}</p>
-                    )}
-
-                    <form
-                        className="add-comment-form"
-                        onSubmit={handleAddComment}
-                    >
+                    <form className="comment-form" onSubmit={submitComment}>
+                        <Avatar profile={myProfile} size={32} />
+                        <label htmlFor={`comment-${post.id}`} className="sr-only">Write a comment</label>
                         <input
+                            ref={commentInputRef}
+                            id={`comment-${post.id}`}
                             type="text"
                             value={commentText}
-                            onChange={e => setCommentText(e.target.value)}
-                            placeholder="Write a comment..."
-                            maxLength={1000}
+                            onChange={(e) => setCommentText(e.target.value)}
+                            placeholder="Write a comment…"
+                            maxLength={MAX_COMMENT}
+                            autoComplete="off"
                         />
-
                         <button
                             type="submit"
-                            disabled={!commentText.trim() || submitting}
-                            aria-label="Send comment"
+                            className="icon-button accent"
+                            disabled={!commentText.trim() || sendingComment}
+                            aria-label="Post comment"
                         >
-                            {submitting ? (
-                                <LoaderCircle size={18} className="spin" />
-                            ) : (
-                                <Send size={18} />
-                            )}
+                            {sendingComment ? <LoaderCircle size={17} className="spin" /> : <Send size={17} />}
                         </button>
                     </form>
                 </section>
+            )}
+
+            {isOwner && (
+                <ConfirmDialog
+                    open={confirmOpen}
+                    title="Delete this post?"
+                    body="It will be removed from Connectify for everyone. This can’t be undone."
+                    confirmLabel="Delete"
+                    busy={deleting}
+                    onConfirm={handleDelete}
+                    onCancel={() => setConfirmOpen(false)}
+                />
             )}
         </article>
     )
