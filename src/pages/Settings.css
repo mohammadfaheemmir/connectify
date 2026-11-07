@@ -1,251 +1,459 @@
+/* Settings: one column of cards, from profile down to the danger zone. */
 
 .settings-layout {
     display: flex;
+    width: 100%;
+    min-width: 0;
     min-height: 100vh;
     background: #09090f;
     color: #f4f4f5;
 }
 
+.settings-layout > .sidebar {
+    width: 260px;
+    min-width: 260px;
+    flex: 0 0 260px;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+}
+
 .settings-main {
     flex: 1;
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 40px;
-}
-
-.settings-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 32px;
-}
-
-.settings-eyebrow {
-    color: #a78bfa;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-}
-
-.settings-header h1 {
-    font-size: 29px;
-    margin: 8px 0;
-}
-
-.settings-header p,
-.settings-section p {
-    color: #a1a1aa;
-    font-size: 14px;
-    margin: 0;
-}
-
-.settings-header > svg,
-.settings-section-heading > svg {
-    color: #a78bfa;
-}
-
-.settings-section {
-    background: #13131e;
-    border: 1px solid #272735;
-    border-radius: 14px;
-    padding: 25px;
-    margin-bottom: 22px;
-}
-
-.settings-section-heading {
-    display: flex;
-    align-items: center;
-    gap: 13px;
-    margin-bottom: 25px;
-}
-
-.settings-section-heading h2,
-.settings-account-section h2 {
-    font-size: 18px;
-    margin: 0 0 7px;
-}
-
-.settings-form {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.settings-form label {
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-    color: #e4e4e7;
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.settings-form input,
-.settings-form textarea {
+    min-width: 0;
     width: 100%;
-    box-sizing: border-box;
-    padding: 13px 14px;
-    border: 1px solid #303041;
-    border-radius: 9px;
-    background: #0c0c15;
-    color: #f4f4f5;
-    font: inherit;
-    outline: none;
-    resize: vertical;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
 }
 
-.settings-form input:focus,
-.settings-form textarea:focus {
+.settings-layout a:focus-visible,
+.settings-layout button:focus-visible,
+.settings-layout input:focus-visible,
+.st-dialog button:focus-visible,
+.st-dialog input:focus-visible {
+    outline: 2px solid #a78bfa;
+    outline-offset: 2px;
+}
+
+.st-title {
+    margin: 0 0 20px;
+    font-size: 26px;
+    font-weight: 750;
+    letter-spacing: -0.4px;
+}
+
+.st-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ---------- Cards ---------- */
+
+.st-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px 22px;
+    background: #13131e;
+    border: 1px solid #252536;
+    border-radius: 16px;
+}
+
+.st-card.danger {
+    border-color: rgba(220, 38, 38, 0.35);
+    background: linear-gradient(180deg, rgba(220, 38, 38, 0.06), transparent 60%), #13131e;
+}
+
+.st-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #c4b5fd;
+}
+
+.st-card.danger .st-card-head {
+    color: #fca5a5;
+}
+
+.st-card-head h2 {
+    margin: 0;
+    color: #f4f4f5;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.st-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+}
+
+.st-row > p,
+.st-row > div {
+    flex: 1 1 280px;
+}
+
+.st-value {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.st-hint {
+    margin: 2px 0 0;
+    color: #a1a1b2;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.st-notice {
+    display: flex;
+    gap: 10px;
+    margin: 0;
+    padding: 12px 14px;
+    color: #ddd6fe;
+    background: rgba(124, 58, 237, 0.12);
+    border: 1px solid rgba(167, 139, 250, 0.25);
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.st-notice svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+/* Profile row */
+.st-profile-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.st-profile-text {
+    flex: 1 1 160px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.st-profile-text strong {
+    overflow: hidden;
+    font-size: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.st-profile-text span {
+    color: #a1a1b2;
+    font-size: 14px;
+}
+
+.st-profile-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ---------- Forms ---------- */
+
+.st-form,
+.st-inline-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 440px;
+}
+
+.st-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.st-field label {
+    color: #d4d4df;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.st-field > input,
+.st-input-wrap {
+    width: 100%;
+    height: 46px;
+    color: #f4f4f5;
+    background: #1a1a28;
+    border: 1px solid #303044;
+    border-radius: 11px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.st-field > input {
+    padding: 0 13px;
+    outline: none;
+    font-size: 15px;
+}
+
+.st-input-wrap {
+    display: flex;
+    align-items: center;
+    padding: 0 4px 0 13px;
+}
+
+.st-input-wrap input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    color: #f4f4f5;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 15px;
+}
+
+.st-field > input:focus,
+.st-input-wrap:focus-within {
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.14);
+}
+
+.st-input-wrap input:focus-visible {
+    outline: none;
+}
+
+.st-input-wrap.invalid,
+.st-field > input[aria-invalid="true"] {
+    border-color: rgba(248, 113, 113, 0.8);
+}
+
+.st-eye {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    color: #a1a1b2;
+    background: transparent;
+    border: none;
+    border-radius: 9px;
+    cursor: pointer;
+}
+
+.st-eye:hover {
+    color: #ffffff;
+    background: #24243a;
+}
+
+.st-match {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: -6px 0 0;
+    color: #86efac;
+    font-size: 13px;
+}
+
+.st-error {
+    margin: 0;
+    padding: 10px 12px;
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.22);
+    border-radius: 10px;
+    font-size: 14px;
+}
+
+.st-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.st-form .st-actions {
+    justify-content: flex-start;
+}
+
+/* ---------- Buttons ---------- */
+
+.st-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 0 16px;
+    color: #e4e3ee;
+    background: #191927;
+    border: 1px solid #34344a;
+    border-radius: 11px;
+    font-size: 14px;
+    font-weight: 650;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.st-button:hover:not(:disabled) {
     border-color: #8b5cf6;
 }
 
-.settings-form input::placeholder,
-.settings-form textarea::placeholder {
-    color: #71717a;
-}
-
-.settings-character-count {
-    color: #71717a;
-    font-size: 12px;
-    text-align: right;
-}
-
-.settings-save-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 9px;
-    width: fit-content;
-    padding: 12px 20px;
-    border: none;
-    border-radius: 9px;
-    background: #8b5cf6;
-    color: white;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.settings-save-button:hover {
+.st-button.primary {
+    color: #ffffff;
     background: #7c3aed;
+    border-color: #7c3aed;
 }
 
-.settings-save-button:disabled {
-    opacity: 0.6;
+.st-button.primary:hover:not(:disabled) {
+    background: #6d28d9;
+}
+
+.st-button.danger {
+    color: #fca5a5;
+    border-color: rgba(220, 38, 38, 0.5);
+    background: transparent;
+}
+
+.st-button.danger:hover:not(:disabled) {
+    border-color: #dc2626;
+    background: rgba(220, 38, 38, 0.1);
+}
+
+.st-button.danger.solid {
+    color: #ffffff;
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
+.st-button.danger.solid:hover:not(:disabled) {
+    background: #b91c1c;
+}
+
+.st-button:disabled {
+    opacity: 0.55;
     cursor: not-allowed;
 }
 
-.settings-message {
+/* ---------- Delete dialog ---------- */
+
+.st-dialog {
+    /* The global reset removes the auto margin that centres dialogs. */
+    margin: auto;
+    width: min(460px, calc(100vw - 32px));
+    padding: 0;
+    color: #f4f4f5;
+    background: #16161f;
+    border: 1px solid rgba(220, 38, 38, 0.45);
+    border-radius: 18px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+
+.st-dialog::backdrop {
+    background: rgba(5, 5, 10, 0.75);
+}
+
+.st-dialog form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 22px;
+}
+
+.st-dialog h2 {
+    margin: 0;
+    font-size: 19px;
+}
+
+.st-dialog p {
+    margin: 0;
+    color: #c9c8d6;
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+/* ---------- Loading / error ---------- */
+
+.st-card.skeleton {
+    min-height: 120px;
+}
+
+.skel {
+    display: block;
+    background: #1c1c2a;
+    border-radius: 8px;
+    animation: st-pulse 1.4s ease-in-out infinite;
+}
+
+.skel-title { height: 18px; width: 30%; }
+.skel-line { height: 13px; width: 75%; }
+.skel-line.short { width: 45%; }
+
+@keyframes st-pulse {
+    50% { background: #262636; }
+}
+
+.st-error-state {
+    align-items: center;
+    text-align: center;
+}
+
+.st-error-state h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.st-error-state p {
+    margin: 0;
+    color: #a1a1b2;
     font-size: 14px;
 }
 
-.settings-message.success {
-    color: #4ade80;
+.spin {
+    animation: st-spin 1s linear infinite;
 }
 
-.settings-message.error {
-    color: #f87171;
+@keyframes st-spin {
+    to { transform: rotate(360deg); }
 }
 
-.settings-account-section > p {
-    margin: 12px 0;
+/* ---------- Toast ---------- */
+
+.st-toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    z-index: 60;
+    transform: translateX(-50%);
+    max-width: calc(100vw - 32px);
+    padding: 12px 18px;
+    color: #ffffff;
+    background: #24233a;
+    border: 1px solid #3a3858;
+    border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    font-size: 14px;
+    font-weight: 600;
 }
 
-.settings-email {
-    padding: 13px;
-    border-radius: 8px;
-    background: #0c0c15;
-    border: 1px solid #303041;
-    color: #d4d4d8;
+.st-toast.error {
+    color: #fecaca;
+    background: #3a1d1d;
+    border-color: #7f1d1d;
 }
 
-.settings-note {
-    display: block;
-    margin-top: 10px;
-    color: #71717a;
-    font-size: 12px;
-}
+/* ---------- Tablet: sidebar becomes a top bar ---------- */
 
-.settings-spinner {
-    animation: settings-spin 1s linear infinite;
-}
-
-@keyframes settings-spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-@media (max-width: 768px) {
-    .settings-main {
-        padding: 25px 18px;
-    }
-
-    .settings-section {
-        padding: 20px;
-    }
-}
-
-
-
-
-/* Security section */
-
-.password-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.password-input-wrapper input {
-    padding-right: 48px;
-}
-
-.password-visibility-button {
-    position: absolute;
-    right: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 5px;
-    border: none;
-    background: transparent;
-    color: #a1a1aa;
-    cursor: pointer;
-}
-
-.password-visibility-button:hover {
-    color: #a78bfa;
-}
-
-.settings-password-hint {
-    color: #a1a1aa;
-    font-size: 12px;
-    margin: -8px 0 0;
-}
-
-.settings-account-section {
-    margin-bottom: 30px;
-}
-
-
-
-/* Settings page responsive improvements */
-
-.settings-layout {
-    width: 100%;
-    min-width: 0;
-}
-
-.settings-main {
-    width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-}
-
-/* Tablet and mobile navigation */
 @media (max-width: 900px) {
     .settings-layout {
-        display: flex;
         flex-direction: column;
     }
 
@@ -297,104 +505,45 @@
 
     .settings-main {
         max-width: 100%;
-        padding: 28px 20px;
+        padding: 20px 16px 48px;
     }
 }
 
-/* Mobile screens */
+/* ---------- Phone ---------- */
+
 @media (max-width: 600px) {
-    .settings-main {
-        padding: 20px 12px;
-    }
-
-    .settings-header {
-        gap: 12px;
-        margin-bottom: 22px;
-    }
-
-    .settings-header h1 {
-        font-size: 24px;
-    }
-
-    .settings-header p,
-    .settings-section p {
-        font-size: 12px;
-        line-height: 1.5;
-    }
-
-    .settings-section {
-        padding: 17px;
-        margin-bottom: 16px;
-        border-radius: 12px;
-    }
-
-    .settings-section-heading {
-        gap: 10px;
-        margin-bottom: 19px;
-    }
-
-    .settings-section-heading h2,
-    .settings-account-section h2 {
-        font-size: 16px;
-    }
-
-    .settings-form {
-        gap: 16px;
-    }
-
-    .settings-form label {
-        font-size: 13px;
-    }
-
-    .settings-form input,
-    .settings-form textarea {
-        padding: 12px;
-        font-size: 13px;
-    }
-
-    .settings-save-button {
-        width: 100%;
-        padding: 13px;
-    }
-
-    .settings-email {
-        overflow-wrap: anywhere;
-        font-size: 13px;
-    }
-
-    .settings-account-section {
-        margin-bottom: 20px;
-    }
-
-    .password-input-wrapper {
-        width: 100%;
-        min-width: 0;
-    }
-
-    .password-input-wrapper input {
-        min-width: 0;
-    }
-}
-
-/* Very small phones */
-@media (max-width: 380px) {
-    .settings-main {
-        padding: 16px 9px;
-    }
-
-    .settings-section {
-        padding: 14px;
-    }
-
-    .settings-header h1 {
+    .st-title {
         font-size: 22px;
     }
 
-    .settings-section-heading {
-        gap: 8px;
+    .st-card {
+        padding: 16px;
     }
 
-    .settings-section-heading h2 {
-        font-size: 15px;
+    .st-profile-actions,
+    .st-row > .st-button {
+        width: 100%;
+    }
+
+    .st-profile-actions .st-button,
+    .st-row > .st-button {
+        flex: 1;
+    }
+
+    .st-form,
+    .st-inline-form {
+        max-width: none;
+    }
+
+    .st-field > input,
+    .st-input-wrap input {
+        font-size: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skel,
+    .spin {
+        animation: none;
     }
 }
