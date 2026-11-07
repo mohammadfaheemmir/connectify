@@ -1,11 +1,64 @@
 
-import { Sparkles, Users, Image, Heart } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Sparkles, ImagePlus, UserPlus, MessageCircle, Compass } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 import './AuthLayout.css'
 
-function AuthLayout({ title, subtitle, children, footer }) {
+const FEATURES = [
+    { icon: ImagePlus, title: 'Post photos and updates', text: 'Share what you’re up to with the people who follow you.' },
+    { icon: UserPlus, title: 'Add friends', text: 'Find people you know and keep up with their posts.' },
+    { icon: MessageCircle, title: 'Message privately', text: 'Chat one-to-one without leaving the app.' },
+    { icon: Compass, title: 'Explore', text: 'Discover posts from beyond your circle.' },
+]
+
+// Only show the weekly count once it's large enough to be convincing.
+const MIN_COUNT_TO_SHOW = 10
+
+function useWeeklyPostCount(enabled) {
+    const [count, setCount] = useState(null)
+
+    useEffect(() => {
+        if (!enabled) return
+        let active = true
+        const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString()
+
+        supabase
+            .from('posts')
+            .select('id', { count: 'exact', head: true })
+            .gte('created_at', weekAgo)
+            .then(({ count: n, error }) => {
+                if (active && !error && typeof n === 'number') setCount(n)
+            })
+
+        return () => {
+            active = false
+        }
+    }, [enabled])
+
+    return count !== null && count >= MIN_COUNT_TO_SHOW ? count : null
+}
+
+function Legal() {
+    return (
+        <p className="auth-legal">
+            By continuing, you agree to our{' '}
+            <Link to="/terms">Terms of Service</Link> and{' '}
+            <Link to="/privacy">Privacy Policy</Link>.
+        </p>
+    )
+}
+
+function AuthLayout({ title, subtitle, children, footer, variant = 'login', loading = false }) {
+    const isSignup = variant === 'signup'
+    const weeklyPosts = useWeeklyPostCount(isSignup && !loading)
+    const proof = weeklyPosts
+        ? `${weeklyPosts.toLocaleString()} posts shared this week`
+        : null
+
     return (
         <main className="auth-page">
-            <section className="auth-brand">
+            <section className="auth-brand" aria-hidden={loading || undefined}>
                 <div className="brand-content">
                     <div className="brand-logo">
                         <div className="brand-icon">
@@ -25,25 +78,21 @@ function AuthLayout({ title, subtitle, children, footer }) {
                         and stay connected with the ones who matter.
                     </p>
 
-                    <div className="brand-features">
-                        <div className="feature-card">
-                            <Users className="feature-purple" size={25} />
-                            <h3>Connect</h3>
-                            <p>Meet people</p>
-                        </div>
+                    {isSignup && (
+                        <ul className="brand-features">
+                            {FEATURES.map(({ icon: Icon, title: t, text }) => (
+                                <li key={t} className="feature-row">
+                                    <span className="feature-icon"><Icon size={20} aria-hidden="true" /></span>
+                                    <span>
+                                        <strong>{t}</strong>
+                                        <span>{text}</span>
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
 
-                        <div className="feature-card">
-                            <Image className="feature-blue" size={25} />
-                            <h3>Share</h3>
-                            <p>Share moments</p>
-                        </div>
-
-                        <div className="feature-card">
-                            <Heart className="feature-pink" size={25} />
-                            <h3>Engage</h3>
-                            <p>Stay connected</p>
-                        </div>
-                    </div>
+                    {proof && <p className="brand-proof">{proof}</p>}
 
                     <p className="brand-copyright">
                         © 2026 Connectify. Made for meaningful connections.
@@ -53,28 +102,44 @@ function AuthLayout({ title, subtitle, children, footer }) {
 
             <section className="auth-form-section">
                 <div className="mobile-brand">
-                    <Sparkles size={25} />
-                    <span>Connectify.</span>
+                    <div className="mobile-brand-logo">
+                        <Sparkles size={22} aria-hidden="true" />
+                        <span>Connectify.</span>
+                    </div>
+                    <p className="mobile-brand-tagline">Your people. Your moments.</p>
+                    {proof && <p className="mobile-brand-proof">{proof}</p>}
                 </div>
 
-                <div className="auth-card">
-                    <div className="auth-heading">
-                        <span className="auth-eyebrow">WELCOME TO CONNECTIFY</span>
-                        <h2>{title}</h2>
-                        <p>{subtitle}</p>
-                    </div>
+                <div className="auth-card" aria-busy={loading || undefined}>
+                    {loading ? (
+                        <div className="auth-skeleton" aria-label="Loading">
+                            <span className="sk sk-title" />
+                            <span className="sk sk-line" />
+                            <span className="sk sk-input" />
+                            <span className="sk sk-input" />
+                            <span className="sk sk-button" />
+                        </div>
+                    ) : (
+                        <>
+                            <div className="auth-heading">
+                                <h2>{title}</h2>
+                                {subtitle && <p>{subtitle}</p>}
+                            </div>
 
-                    {children}
+                            {children}
 
-                    <div className="auth-footer">
-                        {footer}
-                    </div>
+                            {isSignup && <Legal />}
+
+                            {footer && (
+                                <div className="auth-footer">
+                                    {footer}
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
 
-                <p className="auth-legal">
-                    By continuing, you agree to our Terms of Service
-                    and Privacy Policy.
-                </p>
+                {!isSignup && !loading && <Legal />}
             </section>
         </main>
     )

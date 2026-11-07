@@ -4,7 +4,7 @@
     grid-template-columns: 250px minmax(0, 1fr) 290px;
     background: #09090f;
     color: #fff;
-    font-family: Inter, Arial, sans-serif;
+    font-family: 'Inter Variable', Inter, system-ui, sans-serif;
 }
 
 /* LEFT SIDEBAR */
