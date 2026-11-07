@@ -1,6 +1,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowUp, Bell, ImagePlus, LoaderCircle, RotateCw, Search, Settings, UserPlus } from 'lucide-react'
 
 import { supabase } from '../lib/supabase'
@@ -44,6 +44,20 @@ function Home() {
     const pendingLikes = useRef(new Set())
     const sentinelRef = useRef(null)
     const composerOpenRef = useRef(null)
+    const location = useLocation()
+    const navigate = useNavigate()
+    const composeRequest = location.state?.compose
+
+    // The Create tab on phones opens the composer here.
+    useEffect(() => {
+        if (!composeRequest) return
+        const t = setTimeout(() => {
+            composerOpenRef.current?.()
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+            navigate('.', { replace: true, state: null })
+        }, 0)
+        return () => clearTimeout(t)
+    }, [composeRequest, navigate])
 
     const showToast = useCallback((text, tone = 'info') => {
         clearTimeout(toastTimer.current)

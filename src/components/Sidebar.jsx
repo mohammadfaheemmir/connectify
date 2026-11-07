@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useUnreadNotifications } from '../hooks/useUnreadNotifications';
 import { useTheme } from '../hooks/useTheme';
+import MobileNav from './MobileNav';
 import './Sidebar.css';
 
 function Sidebar({ onLogout }) {
@@ -34,6 +35,7 @@ function Sidebar({ onLogout }) {
     ];
 
     return (
+        <>
         <aside className="sidebar">
             <div className="sidebar-logo">
                 <div className="sidebar-logo-icon">
@@ -94,6 +96,9 @@ function Sidebar({ onLogout }) {
                 </button>
             </div>
         </aside>
+
+        <MobileNav unreadNotifications={unreadNotifications} onLogout={onLogout} />
+        </>
     );
 }
 
