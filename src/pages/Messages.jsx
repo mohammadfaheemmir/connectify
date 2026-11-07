@@ -1,627 +1,915 @@
 
-import { useEffect, useState } from 'react';
 import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import {
+    ArrowDown,
+    ArrowLeft,
+    LoaderCircle,
     MessageCircle,
+    RotateCw,
     Search,
     Send,
-    LoaderCircle,
-    Clock3,
+    UserPlus,
+    X,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
+import Avatar from '../components/Avatar';
+import {
+    fetchConversations,
+    fetchFriends,
+    fetchMessages,
+    getOrCreateConversation,
+    insertMessage,
+} from '../lib/messagesApi';
+import {
+    formatClock,
+    formatDayLabel,
+    formatFull,
+    formatListTime,
+    isSameDay,
+} from '../lib/chatTime';
+import { getLastRead, markRead } from '../lib/chatReadState';
 import './Messages.css';
+
+const MAX_LENGTH = 2000;
+const GROUP_GAP_MS = 5 * 60 * 1000;
+const NEAR_BOTTOM_PX = 80;
+
+const displayName = (profile) => profile?.full_name || profile?.username || 'Friend';
+const firstName = (profile) => displayName(profile).split(' ')[0];
+
+function byRecent(a, b) {
+    return (b.lastMessageAt || '').localeCompare(a.lastMessageAt || '');
+}
+
+function matches(profile, query) {
+    if (!query) return true;
+    return `${profile.full_name || ''} ${profile.username || ''}`
+        .toLowerCase()
+        .includes(query.toLowerCase());
+}
+
+function makeTempMessage(conversationId, senderId, content) {
+    return {
+        id: `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        conversation_id: conversationId,
+        sender_id: senderId,
+        content,
+        created_at: new Date().toISOString(),
+        status: 'sending',
+    };
+}
 
 function Messages() {
     const { user, logout } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const selectedFriendId = searchParams.get('with');
 
+    // Sidebar data
     const [friends, setFriends] = useState([]);
     const [conversations, setConversations] = useState([]);
-    const [selectedFriend, setSelectedFriend] = useState(null);
-    const [messages, setMessages] = useState([]);
-    const [messageText, setMessageText] = useState('');
+    const [listStatus, setListStatus] = useState('loading'); // loading | ready | error
     const [search, setSearch] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [sending, setSending] = useState(false);
-    const [error, setError] = useState('');
 
+    // Threads cached by conversation id, or "draft:<friendId>" before the
+    // first message creates a conversation.
+    const [threads, setThreads] = useState({});
+    const [threadReload, setThreadReload] = useState(0);
+    const threadsRef = useRef(threads);
     useEffect(() => {
-        if (user) loadFriendsAndConversations();
-    }, [user]);
+        threadsRef.current = threads;
+    });
 
-    async function loadFriendsAndConversations() {
-        setLoading(true);
-        setError('');
+    const [draft, setDraft] = useState('');
+    const [showJump, setShowJump] = useState(false);
 
-        const { data: requests, error: requestError } = await supabase
-            .from('friend_requests')
-            .select('sender_id, receiver_id')
-            .eq('status', 'accepted')
-            .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
+    const listRef = useRef(null);
+    const composerRef = useRef(null);
+    const stickToBottomRef = useRef(true);
+    const prependRef = useRef(null);
+    const lastKeyRef = useRef(null);
 
-        if (requestError) {
-            setError(requestError.message);
-            setLoading(false);
-            return;
-        }
+    // ---- Load friends and conversations ---------------------------------
 
-        const friendIds = (requests || []).map((request) =>
-            request.sender_id === user.id
-                ? request.receiver_id
-                : request.sender_id
-        );
+    const userId = user?.id;
 
-        if (friendIds.length === 0) {
-            setFriends([]);
-            setConversations([]);
-            setLoading(false);
-            return;
-        }
-
-        const { data: profiles, error: profileError } = await supabase
-            .from('profiles')
-            .select('id, full_name, username, avatar_url')
-            .in('id', friendIds);
-
-        if (profileError) {
-            setError(profileError.message);
-            setLoading(false);
-            return;
-        }
-
-        const profilesList = profiles || [];
-        setFriends(profilesList);
-
-        // Find conversations belonging to the logged-in user.
-        const { data: myMemberships, error: membershipError } = await supabase
-            .from('conversation_members')
-            .select('conversation_id')
-            .eq('user_id', user.id);
-
-        if (membershipError) {
-            setError(membershipError.message);
-            setLoading(false);
-            return;
-        }
-
-        const conversationIds = (myMemberships || []).map(
-            (item) => item.conversation_id
-        );
-
-        if (conversationIds.length === 0) {
-            setConversations([]);
-            setLoading(false);
-            return;
-        }
-
-        // Find the other person in each conversation.
-        const { data: otherMemberships, error: otherError } = await supabase
-            .from('conversation_members')
-            .select('conversation_id, user_id')
-            .in('conversation_id', conversationIds)
-            .neq('user_id', user.id);
-
-        if (otherError) {
-            setError(otherError.message);
-            setLoading(false);
-            return;
-        }
-
-        // Load messages for all existing conversations.
-        const { data: allMessages, error: messagesError } = await supabase
-            .from('messages')
-            .select('id, conversation_id, sender_id, content, created_at')
-            .in('conversation_id', conversationIds)
-            .order('created_at', { ascending: false });
-
-        if (messagesError) {
-            setError(messagesError.message);
-            setLoading(false);
-            return;
-        }
-
-        const latestMessages = {};
-
-        (allMessages || []).forEach((message) => {
-            if (!latestMessages[message.conversation_id]) {
-                latestMessages[message.conversation_id] = message;
+    // mode: 'initial' (first load), 'retry' (show the spinner again) or
+    // 'background' (refresh quietly, keep what's on screen if it fails).
+    const loadList = useCallback(
+        async (mode = 'background') => {
+            if (!userId) return;
+            if (mode === 'retry') setListStatus('loading');
+            try {
+                const friendRows = await fetchFriends(userId);
+                const convoRows = await fetchConversations(userId, friendRows);
+                setFriends(friendRows);
+                setConversations(convoRows);
+                setListStatus('ready');
+            } catch {
+                if (mode !== 'background') setListStatus('error');
             }
-        });
-
-        const conversationList = (otherMemberships || [])
-            .map((membership) => {
-                const friend = profilesList.find(
-                    (profile) => profile.id === membership.user_id
-                );
-
-                if (!friend) return null;
-
-                const latest = latestMessages[membership.conversation_id];
-
-                return {
-                    friendId: friend.id,
-                    friend,
-                    conversationId: membership.conversation_id,
-                    lastMessage: latest?.content || 'No messages yet',
-                    lastMessageAt: latest?.created_at || null,
-                    lastSenderId: latest?.sender_id || null,
-                };
-            })
-            .filter(Boolean)
-            .sort((a, b) => {
-                if (!a.lastMessageAt) return 1;
-                if (!b.lastMessageAt) return -1;
-
-                return (
-                    new Date(b.lastMessageAt) -
-                    new Date(a.lastMessageAt)
-                );
-            });
-
-        setConversations(conversationList);
-        setLoading(false);
-    }
-
-    async function loadMessages(conversationId) {
-        const { data, error: messagesError } = await supabase
-            .from('messages')
-            .select('*')
-            .eq('conversation_id', conversationId)
-            .order('created_at', { ascending: true });
-
-        if (messagesError) {
-            setError(messagesError.message);
-            return;
-        }
-
-        setMessages(data || []);
-    }
-
-    async function openConversation(friend) {
-        setSelectedFriend(friend);
-        setMessages([]);
-        setError('');
-
-        const existingConversation = conversations.find(
-            (item) => item.friendId === friend.id
-        );
-
-        if (existingConversation) {
-            await loadMessages(existingConversation.conversationId);
-            return;
-        }
-
-        const { data: conversation, error: conversationError } =
-            await supabase
-                .from('conversations')
-                .insert({ created_by: user.id })
-                .select('id')
-                .single();
-
-        if (conversationError) {
-            setError(conversationError.message);
-            return;
-        }
-
-        const { error: addMembersError } = await supabase
-            .from('conversation_members')
-            .insert([
-                {
-                    conversation_id: conversation.id,
-                    user_id: user.id,
-                },
-                {
-                    conversation_id: conversation.id,
-                    user_id: friend.id,
-                },
-            ]);
-
-        if (addMembersError) {
-            setError(addMembersError.message);
-            return;
-        }
-
-        setConversations((previous) => [
-            {
-                friendId: friend.id,
-                friend,
-                conversationId: conversation.id,
-                lastMessage: 'No messages yet',
-                lastMessageAt: null,
-                lastSenderId: null,
-            },
-            ...previous,
-        ]);
-    }
-
-    const activeConversation = conversations.find(
-        (item) => item.friendId === selectedFriend?.id
+        },
+        [userId]
     );
 
     useEffect(() => {
-        if (!activeConversation?.conversationId) return;
+        loadList('initial');
+    }, [loadList]);
 
-        const channel = supabase
-            .channel(`messages-${activeConversation.conversationId}`)
-            .on(
+    // ---- Derived state ---------------------------------------------------
+
+    const convoByFriend = useMemo(
+        () => Object.fromEntries(conversations.map((c) => [c.friend.id, c])),
+        [conversations]
+    );
+
+    const selectedFriend = friends.find((f) => f.id === selectedFriendId) ?? null;
+    const activeConvo = selectedFriend ? convoByFriend[selectedFriend.id] ?? null : null;
+    const activeConversationId = activeConvo?.conversationId ?? null;
+    const threadKey = selectedFriend
+        ? activeConversationId ?? `draft:${selectedFriend.id}`
+        : null;
+    const thread = threadKey ? threads[threadKey] : null;
+    const threadLoading = Boolean(activeConversationId) && !thread;
+    const messages = thread?.messages ?? [];
+
+    // Read markers come from local storage; the open chat always counts as read.
+    const lastRead = getLastRead();
+
+    const isUnread = (c) =>
+        c.lastMessageAt &&
+        c.lastSenderId !== user?.id &&
+        c.conversationId !== activeConversationId &&
+        c.lastMessageAt > (lastRead[c.conversationId] || '');
+
+    const chats = conversations
+        .filter((c) => c.lastMessageAt && matches(c.friend, search))
+        .sort(byRecent);
+
+    const newChatFriends = friends
+        .filter((f) => !convoByFriend[f.id]?.lastMessageAt && matches(f, search))
+        .sort((a, b) => displayName(a).localeCompare(displayName(b)));
+
+    const unreadCount = conversations.filter(isUnread).length;
+
+    // ---- Load the open thread ------------------------------------------
+
+    useEffect(() => {
+        if (!activeConversationId || threadsRef.current[activeConversationId]) return;
+        let cancelled = false;
+
+        fetchMessages(activeConversationId)
+            .then(({ rows, hasMore }) => {
+                if (cancelled) return;
+                setThreads((t) => ({
+                    ...t,
+                    [activeConversationId]: { messages: rows, hasMore },
+                }));
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setThreads((t) => ({
+                    ...t,
+                    [activeConversationId]: { messages: [], hasMore: false, error: true },
+                }));
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [activeConversationId, threadReload]);
+
+    // Keep the open chat marked as read.
+    useEffect(() => {
+        if (activeConversationId && activeConvo?.lastMessageAt) {
+            markRead(activeConversationId, activeConvo.lastMessageAt);
+        }
+    }, [activeConversationId, activeConvo?.lastMessageAt]);
+
+    // ---- Realtime ----------------------------------------------------------
+
+    const handleIncomingRef = useRef(null);
+    const handleIncoming = (row) => {
+        setThreads((t) => {
+            const existing = t[row.conversation_id];
+            if (!existing || existing.messages.some((m) => m.id === row.id)) return t;
+            return {
+                ...t,
+                [row.conversation_id]: {
+                    ...existing,
+                    messages: [...existing.messages, row],
+                },
+            };
+        });
+
+        const known = conversations.some((c) => c.conversationId === row.conversation_id);
+        if (!known) {
+            loadList('background');
+            return;
+        }
+
+        setConversations((list) =>
+            list.map((c) =>
+                c.conversationId === row.conversation_id &&
+                (c.lastMessageAt || '') <= row.created_at
+                    ? {
+                          ...c,
+                          lastMessage: row.content,
+                          lastMessageAt: row.created_at,
+                          lastSenderId: row.sender_id,
+                      }
+                    : c
+            )
+        );
+    };
+
+    useLayoutEffect(() => {
+        handleIncomingRef.current = handleIncoming;
+    });
+
+    const conversationIdsKey = conversations
+        .map((c) => c.conversationId)
+        .sort()
+        .join(',');
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const ids = conversationIdsKey ? conversationIdsKey.split(',') : [];
+        const channel = supabase.channel(`inbox-${user.id}`);
+
+        if (ids.length > 0) {
+            channel.on(
                 'postgres_changes',
                 {
                     event: 'INSERT',
                     schema: 'public',
                     table: 'messages',
-                    filter: `conversation_id=eq.${activeConversation.conversationId}`,
+                    // Realtime "in" filters accept up to 100 values.
+                    ...(ids.length <= 100
+                        ? { filter: `conversation_id=in.(${conversationIdsKey})` }
+                        : {}),
                 },
                 (payload) => {
-                    setMessages((previous) => {
-                        if (
-                            previous.some(
-                                (message) => message.id === payload.new.id
-                            )
-                        ) {
-                            return previous;
-                        }
-
-                        return [...previous, payload.new];
-                    });
-
-                    setConversations((previous) =>
-                        previous
-                            .map((item) =>
-                                item.conversationId ===
-                                activeConversation.conversationId
-                                    ? {
-                                          ...item,
-                                          lastMessage: payload.new.content,
-                                          lastMessageAt:
-                                              payload.new.created_at,
-                                          lastSenderId: payload.new.sender_id,
-                                      }
-                                    : item
-                            )
-                            .sort((a, b) => {
-                                if (!a.lastMessageAt) return 1;
-                                if (!b.lastMessageAt) return -1;
-
-                                return (
-                                    new Date(b.lastMessageAt) -
-                                    new Date(a.lastMessageAt)
-                                );
-                            })
-                    );
+                    if (ids.includes(payload.new.conversation_id)) {
+                        handleIncomingRef.current(payload.new);
+                    }
                 }
-            )
-            .subscribe();
+            );
+        }
+
+        // A friend starting a new chat with this user.
+        channel.on(
+            'postgres_changes',
+            {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'conversation_members',
+                filter: `user_id=eq.${user.id}`,
+            },
+            () => loadList('background')
+        );
+
+        channel.subscribe();
 
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [activeConversation?.conversationId]);
+    }, [user?.id, conversationIdsKey, loadList]);
 
-    async function sendMessage(event) {
-        event.preventDefault();
+    // ---- Scrolling ---------------------------------------------------------
 
-        const content = messageText.trim();
+    const scrollToBottom = (behavior = 'auto') => {
+        const el = listRef.current;
+        if (el) el.scrollTo({ top: el.scrollHeight, behavior });
+    };
 
-        if (!content || !activeConversation?.conversationId) return;
+    useLayoutEffect(() => {
+        const el = listRef.current;
+        if (!el) return;
 
-        setSending(true);
-        setError('');
-
-        const { error: sendError } = await supabase
-            .from('messages')
-            .insert({
-                conversation_id: activeConversation.conversationId,
-                sender_id: user.id,
-                content,
-            });
-
-        if (sendError) {
-            setError(sendError.message);
-        } else {
-            setMessageText('');
+        if (lastKeyRef.current !== threadKey) {
+            lastKeyRef.current = threadKey;
+            stickToBottomRef.current = true;
+            el.scrollTop = el.scrollHeight;
+            return;
         }
 
-        setSending(false);
-    }
+        if (prependRef.current) {
+            const { height, top } = prependRef.current;
+            el.scrollTop = el.scrollHeight - height + top;
+            prependRef.current = null;
+            return;
+        }
 
-    function formatTime(date) {
-        if (!date) return '';
+        if (stickToBottomRef.current) {
+            el.scrollTop = el.scrollHeight;
+        }
+    }, [threadKey, messages.length, threadLoading]);
 
-        return new Date(date).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
+    const handleScroll = () => {
+        const el = listRef.current;
+        if (!el) return;
+        const near = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
+        stickToBottomRef.current = near;
+        if (showJump === near) setShowJump(!near);
+    };
+
+    const loadOlder = async () => {
+        if (!activeConversationId || !thread?.hasMore || thread.loadingOlder) return;
+        const before = thread.messages[0]?.created_at;
+        setThreads((t) => ({
+            ...t,
+            [activeConversationId]: { ...t[activeConversationId], loadingOlder: true },
+        }));
+
+        try {
+            const { rows, hasMore } = await fetchMessages(activeConversationId, before);
+            const el = listRef.current;
+            prependRef.current = el ? { height: el.scrollHeight, top: el.scrollTop } : null;
+            setThreads((t) => {
+                const current = t[activeConversationId];
+                const ids = new Set(current.messages.map((m) => m.id));
+                return {
+                    ...t,
+                    [activeConversationId]: {
+                        ...current,
+                        messages: [...rows.filter((m) => !ids.has(m.id)), ...current.messages],
+                        hasMore,
+                        loadingOlder: false,
+                    },
+                };
+            });
+        } catch {
+            setThreads((t) => ({
+                ...t,
+                [activeConversationId]: { ...t[activeConversationId], loadingOlder: false },
+            }));
+        }
+    };
+
+    // ---- Selecting a chat ------------------------------------------------
+
+    const openChat = (friendId) => {
+        setDraft('');
+        setShowJump(false);
+        setSearchParams({ with: friendId });
+    };
+
+    const closeChat = () => {
+        setSearchParams({});
+    };
+
+    // Focus the composer when a chat opens, except on touch screens where
+    // it would pop up the keyboard over the conversation.
+    const hasSelectedFriend = Boolean(selectedFriend);
+    useEffect(() => {
+        if (!hasSelectedFriend) return;
+        if (window.matchMedia?.('(pointer: fine)').matches) {
+            composerRef.current?.focus({ preventScroll: true });
+        }
+    }, [selectedFriendId, hasSelectedFriend]);
+
+    // ---- Sending ---------------------------------------------------------
+
+    // Patch a message wherever it currently lives (a temp message can move
+    // from the draft thread to the real conversation while it's sending).
+    const patchMessageEverywhere = (id, patch) => {
+        setThreads((t) => {
+            const next = { ...t };
+            Object.keys(next).forEach((k) => {
+                if (next[k].messages.some((m) => m.id === id)) {
+                    next[k] = {
+                        ...next[k],
+                        messages: next[k].messages.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+                    };
+                }
+            });
+            return next;
         });
-    }
+    };
 
-    const filteredFriends = friends.filter((friend) =>
-        `${friend.full_name || ''} ${friend.username || ''}`
-            .toLowerCase()
-            .includes(search.toLowerCase())
-    );
+    // One conversation-creation request per friend, even if several
+    // messages are sent before the first one finishes.
+    const creatingRef = useRef({});
+    const ensureConversation = (friendId) => {
+        if (!creatingRef.current[friendId]) {
+            creatingRef.current[friendId] = getOrCreateConversation(user.id, friendId).catch((err) => {
+                delete creatingRef.current[friendId];
+                throw err;
+            });
+        }
+        return creatingRef.current[friendId];
+    };
 
-    const filteredConversations = conversations.filter((conversation) =>
-        `${conversation.friend.full_name || ''} ${conversation.friend.username || ''}`
-            .toLowerCase()
-            .includes(search.toLowerCase())
-    );
+    const sendContent = async (content, friend) => {
+        const key = activeConversationId ?? `draft:${friend.id}`;
+        const temp = makeTempMessage(activeConversationId, user.id, content);
+        const tempId = temp.id;
+
+        stickToBottomRef.current = true;
+        setThreads((t) => {
+            const current = t[key] ?? { messages: [], hasMore: false };
+            return { ...t, [key]: { ...current, messages: [...current.messages, temp] } };
+        });
+
+        try {
+            let conversationId = activeConversationId;
+            let created = false;
+
+            if (!conversationId) {
+                const result = await ensureConversation(friend.id);
+                conversationId = result.id;
+                created = result.created;
+            }
+
+            const row = await insertMessage(conversationId, user.id, content);
+
+            // Joining a conversation that already existed: fetch its history
+            // (which now includes this message) before showing it.
+            let history = null;
+            if (!created && !threadsRef.current[conversationId]) {
+                history = await fetchMessages(conversationId).catch(() => null);
+            }
+
+            setThreads((t) => {
+                const next = { ...t };
+                const draftKey = `draft:${friend.id}`;
+                const leftovers = (next[draftKey]?.messages ?? []).filter((m) => m.id !== tempId);
+                delete next[draftKey];
+
+                const base =
+                    next[conversationId] ??
+                    (history
+                        ? { messages: history.rows, hasMore: history.hasMore }
+                        : { messages: [], hasMore: false });
+
+                const without = base.messages.filter((m) => m.id !== tempId);
+                const merged = without.some((m) => m.id === row.id) ? without : [...without, row];
+
+                next[conversationId] = {
+                    ...base,
+                    messages: [...merged, ...leftovers.filter((m) => !merged.some((x) => x.id === m.id))],
+                };
+                return next;
+            });
+
+            const entry = {
+                conversationId,
+                friend,
+                lastMessage: row.content,
+                lastMessageAt: row.created_at,
+                lastSenderId: user.id,
+            };
+            setConversations((list) => [
+                entry,
+                ...list.filter((c) => c.friend.id !== friend.id),
+            ]);
+        } catch {
+            patchMessageEverywhere(tempId, { status: 'failed' });
+        }
+    };
+
+    const handleSend = (event) => {
+        event?.preventDefault();
+        const content = draft.trim();
+        if (!content || !selectedFriend || content.length > MAX_LENGTH) return;
+        setDraft('');
+        resizeComposer(true);
+        sendContent(content, selectedFriend);
+    };
+
+    const retry = (message) => {
+        setThreads((t) => {
+            const current = t[threadKey];
+            return {
+                ...t,
+                [threadKey]: {
+                    ...current,
+                    messages: current.messages.filter((m) => m.id !== message.id),
+                },
+            };
+        });
+        sendContent(message.content, selectedFriend);
+    };
+
+    const discard = (message) => {
+        setThreads((t) => {
+            const current = t[threadKey];
+            return {
+                ...t,
+                [threadKey]: {
+                    ...current,
+                    messages: current.messages.filter((m) => m.id !== message.id),
+                },
+            };
+        });
+    };
+
+    const resizeComposer = (reset = false) => {
+        const el = composerRef.current;
+        if (!el) return;
+        el.style.height = 'auto';
+        if (!reset) el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+    };
+
+    const handleComposerKey = (event) => {
+        if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+            event.preventDefault();
+            handleSend();
+        }
+    };
+
+    // ---- Render helpers --------------------------------------------------
+
+    const renderThread = () => {
+        if (threadLoading) {
+            return (
+                <div className="chat-state" role="status">
+                    <LoaderCircle className="messages-spinner" size={24} aria-hidden="true" />
+                    <span>Loading messages…</span>
+                </div>
+            );
+        }
+
+        if (thread?.error) {
+            return (
+                <div className="chat-state">
+                    <p>We couldn’t load this conversation.</p>
+                    <button
+                        type="button"
+                        className="chat-text-button"
+                        onClick={() => {
+                            setThreads((t) => {
+                                const next = { ...t };
+                                delete next[activeConversationId];
+                                return next;
+                            });
+                            setThreadReload((n) => n + 1);
+                        }}
+                    >
+                        <RotateCw size={15} aria-hidden="true" /> Try again
+                    </button>
+                </div>
+            );
+        }
+
+        if (messages.length === 0) {
+            return (
+                <div className="chat-state chat-intro">
+                    <Avatar profile={selectedFriend} size={72} />
+                    <h3>{displayName(selectedFriend)}</h3>
+                    {selectedFriend.username && (
+                        <span className="chat-intro-handle">@{selectedFriend.username}</span>
+                    )}
+                    <p>This is the start of your conversation. Say hello to {firstName(selectedFriend)}.</p>
+                </div>
+            );
+        }
+
+        return (
+            <>
+                {thread?.hasMore && (
+                    <button
+                        type="button"
+                        className="chat-load-older"
+                        onClick={loadOlder}
+                        disabled={thread.loadingOlder}
+                    >
+                        {thread.loadingOlder ? 'Loading…' : 'Load earlier messages'}
+                    </button>
+                )}
+
+                {messages.map((message, i) => {
+                    const prev = messages[i - 1];
+                    const next = messages[i + 1];
+                    const mine = message.sender_id === user.id;
+                    const newDay = !prev || !isSameDay(prev.created_at, message.created_at);
+                    const startsGroup =
+                        newDay ||
+                        prev.sender_id !== message.sender_id ||
+                        new Date(message.created_at) - new Date(prev.created_at) > GROUP_GAP_MS;
+                    const endsGroup =
+                        !next ||
+                        next.sender_id !== message.sender_id ||
+                        !isSameDay(next.created_at, message.created_at) ||
+                        new Date(next.created_at) - new Date(message.created_at) > GROUP_GAP_MS;
+
+                    return (
+                        <div key={message.id} className="chat-row-wrap">
+                            {newDay && (
+                                <div className="chat-day" role="separator">
+                                    <span>{formatDayLabel(message.created_at)}</span>
+                                </div>
+                            )}
+                            <div
+                                className={[
+                                    'chat-row',
+                                    mine ? 'mine' : 'theirs',
+                                    startsGroup ? 'group-start' : '',
+                                    endsGroup ? 'group-end' : '',
+                                ].join(' ')}
+                            >
+                                {!mine && (
+                                    <span className="chat-row-avatar">
+                                        {endsGroup && <Avatar profile={selectedFriend} size={28} />}
+                                    </span>
+                                )}
+                                <div className={`chat-bubble${message.status === 'failed' ? ' failed' : ''}`}>
+                                    <p>{message.content}</p>
+                                    {endsGroup && (
+                                        <time dateTime={message.created_at} title={formatFull(message.created_at)}>
+                                            {message.status === 'sending'
+                                                ? 'Sending…'
+                                                : formatClock(message.created_at)}
+                                        </time>
+                                    )}
+                                </div>
+                            </div>
+                            {message.status === 'failed' && (
+                                <div className="chat-failed" role="alert">
+                                    Not sent.
+                                    <button type="button" onClick={() => retry(message)}>Retry</button>
+                                    <button type="button" onClick={() => discard(message)}>Delete</button>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </>
+        );
+    };
+
+    const renderContactList = () => {
+        if (listStatus === 'loading') {
+            return (
+                <ul className="chat-list" aria-label="Loading chats">
+                    {[0, 1, 2, 3].map((i) => (
+                        <li key={i} className="chat-skeleton">
+                            <span className="sk-avatar" />
+                            <span className="sk-lines"><span /><span /></span>
+                        </li>
+                    ))}
+                </ul>
+            );
+        }
+
+        if (listStatus === 'error') {
+            return (
+                <div className="chat-list-state">
+                    <p>We couldn’t load your chats.</p>
+                    <button type="button" className="chat-text-button" onClick={() => loadList('retry')}>
+                        <RotateCw size={15} aria-hidden="true" /> Try again
+                    </button>
+                </div>
+            );
+        }
+
+        if (friends.length === 0) {
+            return (
+                <div className="chat-list-state">
+                    <MessageCircle size={28} aria-hidden="true" />
+                    <p><strong>No friends to message yet</strong></p>
+                    <p>You can message anyone who has accepted your friend request.</p>
+                    <Link to="/friends" className="chat-cta">
+                        <UserPlus size={16} aria-hidden="true" /> Find friends
+                    </Link>
+                </div>
+            );
+        }
+
+        if (chats.length === 0 && newChatFriends.length === 0) {
+            return (
+                <div className="chat-list-state">
+                    <p>No one matches “{search}”.</p>
+                </div>
+            );
+        }
+
+        return (
+            <>
+                {chats.length > 0 && (
+                    <section aria-labelledby="chats-heading">
+                        <h2 id="chats-heading" className="chat-section-title">Chats</h2>
+                        <ul className="chat-list">
+                            {chats.map((c) => {
+                                const unread = isUnread(c);
+                                const selected = c.friend.id === selectedFriendId;
+                                return (
+                                    <li key={c.conversationId}>
+                                        <button
+                                            type="button"
+                                            className={`chat-contact${selected ? ' selected' : ''}${unread ? ' unread' : ''}`}
+                                            onClick={() => openChat(c.friend.id)}
+                                            aria-current={selected ? 'true' : undefined}
+                                        >
+                                            <Avatar profile={c.friend} size={44} />
+                                            <span className="chat-contact-body">
+                                                <span className="chat-contact-top">
+                                                    <strong>{displayName(c.friend)}</strong>
+                                                    <time dateTime={c.lastMessageAt}>{formatListTime(c.lastMessageAt)}</time>
+                                                </span>
+                                                <span className="chat-contact-preview">
+                                                    {c.lastSenderId === user.id && 'You: '}
+                                                    {c.lastMessage}
+                                                </span>
+                                            </span>
+                                            {unread && (
+                                                <span className="chat-unread-dot">
+                                                    <span className="msg-sr-only">Unread</span>
+                                                </span>
+                                            )}
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </section>
+                )}
+
+                {newChatFriends.length > 0 && (
+                    <section aria-labelledby="new-chat-heading">
+                        <h2 id="new-chat-heading" className="chat-section-title">Start a new chat</h2>
+                        <ul className="chat-list">
+                            {newChatFriends.map((f) => {
+                                const selected = f.id === selectedFriendId;
+                                return (
+                                    <li key={f.id}>
+                                        <button
+                                            type="button"
+                                            className={`chat-contact compact${selected ? ' selected' : ''}`}
+                                            onClick={() => openChat(f.id)}
+                                            aria-current={selected ? 'true' : undefined}
+                                        >
+                                            <Avatar profile={f} size={36} />
+                                            <span className="chat-contact-body">
+                                                <strong>{displayName(f)}</strong>
+                                                {f.username && (
+                                                    <span className="chat-contact-preview">@{f.username}</span>
+                                                )}
+                                            </span>
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </section>
+                )}
+            </>
+        );
+    };
+
+    const tooLong = draft.length > MAX_LENGTH;
+    const showCounter = draft.length > MAX_LENGTH - 200;
+    const unknownFriend = selectedFriendId && listStatus === 'ready' && !selectedFriend;
 
     return (
         <div className="messages-layout">
             <Sidebar activePage="Messages" onLogout={logout} />
 
             <main className="messages-main">
-                <header className="messages-header">
-                    <div>
-                        <span className="messages-eyebrow">
-                            CONNECT WITH FRIENDS
-                        </span>
-                        <h1>Messages</h1>
-                        <p>Your private conversations, all in one place.</p>
-                    </div>
-                </header>
-
-                {error && (
-                    <div className="messages-error">{error}</div>
-                )}
-
-                <section className="messages-workspace">
+                <section
+                    className={`messages-workspace${selectedFriend ? ' has-chat' : ''}`}
+                    aria-label="Messages"
+                >
                     <aside className="messages-contacts">
-                        <div className="messages-search">
-                            <Search size={17} />
-                            <input
-                                value={search}
-                                onChange={(event) =>
-                                    setSearch(event.target.value)
-                                }
-                                placeholder="Search friends..."
-                            />
+                        <div className="messages-contacts-head">
+                            <h1>
+                                Messages
+                                {unreadCount > 0 && (
+                                    <span className="chat-unread-count">
+                                        {unreadCount}
+                                        <span className="msg-sr-only"> unread</span>
+                                    </span>
+                                )}
+                            </h1>
+
+                            <div className="messages-search">
+                                <Search size={17} aria-hidden="true" />
+                                <input
+                                    id="messages-search"
+                                    type="search"
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    placeholder="Search friends"
+                                    aria-label="Search friends"
+                                    autoComplete="off"
+                                />
+                                {search && (
+                                    <button
+                                        type="button"
+                                        className="messages-search-clear"
+                                        onClick={() => setSearch('')}
+                                        aria-label="Clear search"
+                                    >
+                                        <X size={15} />
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
-                        {loading ? (
-                            <div className="messages-loading">
-                                <LoaderCircle
-                                    className="messages-spinner"
-                                    size={22}
-                                />
-                            </div>
-                        ) : (
-                            <>
-                                <div className="messages-contact-heading">
-                                    <Clock3 size={13} />
-                                    RECENT CHATS
-                                </div>
-
-                                {filteredConversations.length === 0 ? (
-                                    <p className="messages-section-empty">
-                                        No recent conversations yet.
-                                    </p>
-                                ) : (
-                                    filteredConversations.map(
-                                        (conversation) => (
-                                            <button
-                                                key={conversation.conversationId}
-                                                className={`messages-contact ${
-                                                    selectedFriend?.id ===
-                                                    conversation.friendId
-                                                        ? 'selected'
-                                                        : ''
-                                                }`}
-                                                onClick={() =>
-                                                    openConversation(
-                                                        conversation.friend
-                                                    )
-                                                }
-                                            >
-                                                {conversation.friend
-                                                    .avatar_url ? (
-                                                    <img
-                                                        src={
-                                                            conversation.friend
-                                                                .avatar_url
-                                                        }
-                                                        alt=""
-                                                    />
-                                                ) : (
-                                                    <div className="messages-avatar-fallback">
-                                                        {(
-                                                            conversation.friend
-                                                                .full_name ||
-                                                            conversation.friend
-                                                                .username ||
-                                                            '?'
-                                                        )
-                                                            .charAt(0)
-                                                            .toUpperCase()}
-                                                    </div>
-                                                )}
-
-                                                <span className="messages-contact-info">
-                                                    <strong>
-                                                        {conversation.friend
-                                                            .full_name ||
-                                                            conversation.friend
-                                                                .username}
-                                                    </strong>
-                                                    <small>
-                                                        {conversation.lastSenderId ===
-                                                        user.id
-                                                            ? 'You: '
-                                                            : ''}
-                                                        {conversation.lastMessage}
-                                                    </small>
-                                                </span>
-
-                                                <time className="messages-contact-time">
-                                                    {formatTime(
-                                                        conversation.lastMessageAt
-                                                    )}
-                                                </time>
-                                            </button>
-                                        )
-                                    )
-                                )}
-
-                                <div className="messages-contact-heading">
-                                    YOUR FRIENDS
-                                </div>
-
-                                {filteredFriends.length === 0 ? (
-                                    <div className="messages-empty-contacts">
-                                        <MessageCircle size={25} />
-                                        <p>No friends found.</p>
-                                        <span>
-                                            Add friends to start a conversation.
-                                        </span>
-                                    </div>
-                                ) : (
-                                    filteredFriends.map((friend) => (
-                                        <button
-                                            className={`messages-contact ${
-                                                selectedFriend?.id === friend.id
-                                                    ? 'selected'
-                                                    : ''
-                                            }`}
-                                            key={friend.id}
-                                            onClick={() =>
-                                                openConversation(friend)
-                                            }
-                                        >
-                                            {friend.avatar_url ? (
-                                                <img
-                                                    src={friend.avatar_url}
-                                                    alt=""
-                                                />
-                                            ) : (
-                                                <div className="messages-avatar-fallback">
-                                                    {(
-                                                        friend.full_name ||
-                                                        friend.username ||
-                                                        '?'
-                                                    )
-                                                        .charAt(0)
-                                                        .toUpperCase()}
-                                                </div>
-                                            )}
-
-                                            <span className="messages-contact-info">
-                                                <strong>
-                                                    {friend.full_name ||
-                                                        friend.username}
-                                                </strong>
-                                                <small>
-                                                    @{friend.username || 'user'}
-                                                </small>
-                                            </span>
-                                        </button>
-                                    ))
-                                )}
-                            </>
-                        )}
+                        <div className="messages-contacts-scroll">{renderContactList()}</div>
                     </aside>
 
                     <section className="messages-chat">
                         {selectedFriend ? (
                             <>
-                                <div className="messages-chat-header">
-                                    {selectedFriend.avatar_url ? (
-                                        <img
-                                            src={selectedFriend.avatar_url}
-                                            alt=""
-                                        />
-                                    ) : (
-                                        <div className="messages-avatar-fallback">
-                                            {(
-                                                selectedFriend.full_name ||
-                                                selectedFriend.username ||
-                                                '?'
-                                            )
-                                                .charAt(0)
-                                                .toUpperCase()}
-                                        </div>
-                                    )}
-
-                                    <div>
-                                        <strong>
-                                            {selectedFriend.full_name ||
-                                                selectedFriend.username}
-                                        </strong>
-                                        <span>
-                                            @{selectedFriend.username || 'user'}
-                                        </span>
+                                <header className="messages-chat-header">
+                                    <button
+                                        type="button"
+                                        className="chat-back"
+                                        onClick={closeChat}
+                                        aria-label="Back to chats"
+                                    >
+                                        <ArrowLeft size={20} />
+                                    </button>
+                                    <Avatar profile={selectedFriend} size={40} />
+                                    <div className="messages-chat-title">
+                                        <h2>{displayName(selectedFriend)}</h2>
+                                        {selectedFriend.username && <span>@{selectedFriend.username}</span>}
                                     </div>
-                                </div>
+                                </header>
 
-                                <div className="messages-list">
-                                    {messages.length === 0 ? (
-                                        <div className="messages-empty-chat">
-                                            <MessageCircle size={34} />
-                                            <h3>Start a conversation</h3>
-                                            <p>
-                                                Say hello to your friend!
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        messages.map((message) => (
-                                            <div
-                                                key={message.id}
-                                                className={`message-bubble ${
-                                                    message.sender_id ===
-                                                    user.id
-                                                        ? 'sent'
-                                                        : 'received'
-                                                }`}
-                                            >
-                                                <p>{message.content}</p>
-                                                <time>
-                                                    {formatTime(
-                                                        message.created_at
-                                                    )}
-                                                </time>
-                                            </div>
-                                        ))
+                                <div className="messages-thread">
+                                    <div
+                                        ref={listRef}
+                                        className="messages-list"
+                                        onScroll={handleScroll}
+                                        role="log"
+                                        aria-live="polite"
+                                        aria-label={`Conversation with ${displayName(selectedFriend)}`}
+                                    >
+                                        {renderThread()}
+                                    </div>
+
+                                    {showJump && (
+                                        <button
+                                            type="button"
+                                            className="chat-jump"
+                                            onClick={() => {
+                                                stickToBottomRef.current = true;
+                                                setShowJump(false);
+                                                scrollToBottom('smooth');
+                                            }}
+                                        >
+                                            <ArrowDown size={16} aria-hidden="true" /> Latest
+                                        </button>
                                     )}
                                 </div>
 
-                                <form
-                                    className="messages-composer"
-                                    onSubmit={sendMessage}
-                                >
-                                    <input
-                                        value={messageText}
-                                        onChange={(event) =>
-                                            setMessageText(event.target.value)
-                                        }
-                                        placeholder="Write a message..."
-                                        maxLength={2000}
-                                    />
+                                <form className="messages-composer" onSubmit={handleSend}>
+                                    <div className={`composer-field${tooLong ? ' too-long' : ''}`}>
+                                        <textarea
+                                            ref={composerRef}
+                                            id="messages-composer"
+                                            rows={1}
+                                            value={draft}
+                                            onChange={(e) => {
+                                                setDraft(e.target.value);
+                                                resizeComposer();
+                                            }}
+                                            onKeyDown={handleComposerKey}
+                                            placeholder={`Message ${firstName(selectedFriend)}`}
+                                            aria-label={`Message ${displayName(selectedFriend)}`}
+                                            aria-describedby={showCounter ? 'composer-count' : undefined}
+                                        />
+                                        {showCounter && (
+                                            <span id="composer-count" className="composer-count">
+                                                {draft.length}/{MAX_LENGTH}
+                                            </span>
+                                        )}
+                                    </div>
 
                                     <button
                                         type="submit"
-                                        disabled={
-                                            !messageText.trim() || sending
-                                        }
+                                        disabled={!draft.trim() || tooLong}
                                         aria-label="Send message"
                                     >
-                                        {sending ? (
-                                            <LoaderCircle
-                                                className="messages-spinner"
-                                                size={19}
-                                            />
-                                        ) : (
-                                            <Send size={19} />
-                                        )}
+                                        <Send size={19} aria-hidden="true" />
                                     </button>
                                 </form>
                             </>
                         ) : (
                             <div className="messages-welcome">
                                 <div className="messages-welcome-icon">
-                                    <MessageCircle size={35} />
+                                    <MessageCircle size={32} aria-hidden="true" />
                                 </div>
-                                <h2>Your conversations start here</h2>
+                                <h2>{unknownFriend ? 'Chat not found' : 'Your messages'}</h2>
                                 <p>
-                                    Select a friend from the left to start
-                                    messaging.
+                                    {unknownFriend
+                                        ? 'You can only message people on your friends list.'
+                                        : friends.length > 0
+                                            ? 'Pick a chat on the left, or start a new one with a friend.'
+                                            : 'Add friends to start a private conversation.'}
                                 </p>
                             </div>
                         )}
