@@ -1,356 +1,410 @@
 
-import { useEffect, useState } from 'react';
-import {
-    Search,
-    Heart,
-    MessageCircle,
-    Compass,
-    User,
-} from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Compass, Flame, Heart, LoaderCircle, MessageCircle, RotateCw, Search, Sparkles, X } from 'lucide-react';
 
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
-import ProfileLink from '../components/ProfileLink';
+import Avatar from '../components/Avatar';
+import PostViewer from '../components/PostViewer';
+import { fetchOwnProfile } from '../lib/profileApi';
+import { fetchLatest, fetchPopular, searchPeople, searchPosts } from '../lib/exploreApi';
 import './Explore.css';
+
+const TOAST_MS = 4000;
+const nameOf = (p) => p?.full_name || p?.username || 'Connectify user';
+
+function TileGrid({ posts, onOpen, label }) {
+    return (
+        <ul className="ex-grid" aria-label={label}>
+            {posts.map((post, i) => (
+                <li key={post.id}>
+                    <button
+                        type="button"
+                        className={`ex-tile${post.image_url ? '' : ' text'}`}
+                        onClick={() => onOpen(i)}
+                        aria-label={`Open post by ${nameOf(post.profile)}${post.caption ? `: ${post.caption.slice(0, 80)}` : ''}. ${post.likeCount} likes, ${post.commentCount} comments`}
+                    >
+                        {post.image_url ? (
+                            <img src={post.image_url} alt="" loading="lazy" decoding="async" />
+                        ) : (
+                            <span className="ex-tile-text">{post.caption}</span>
+                        )}
+                        <span className="ex-tile-author" aria-hidden="true">
+                            <Avatar profile={post.profile} size={22} />
+                            <span>{nameOf(post.profile)}</span>
+                        </span>
+                        <span className="ex-tile-overlay" aria-hidden="true">
+                            <span><Heart size={18} fill="currentColor" /> {post.likeCount}</span>
+                            <span><MessageCircle size={18} fill="currentColor" /> {post.commentCount}</span>
+                        </span>
+                    </button>
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+function SkeletonGrid() {
+    return (
+        <ul className="ex-grid" aria-busy="true" aria-label="Loading posts">
+            {Array.from({ length: 9 }, (_, i) => (
+                <li key={i}><span className="ex-tile skel" aria-hidden="true" /></li>
+            ))}
+        </ul>
+    );
+}
 
 function Explore() {
     const { user, logout } = useAuth();
+    const userId = user?.id;
+    const signupName = user?.user_metadata?.full_name || '';
+    const [searchParams, setSearchParams] = useSearchParams();
 
-    const [posts, setPosts] = useState([]);
-    const [search, setSearch] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [likedPosts, setLikedPosts] = useState(new Set());
-    const [actionId, setActionId] = useState(null);
-    const [error, setError] = useState('');
+    const query = (searchParams.get('q') || '').trim();
+    const tab = searchParams.get('tab') === 'popular' ? 'popular' : 'latest';
+
+    const [input, setInput] = useState(query);
+    const [me, setMe] = useState(null);
+    const [latest, setLatest] = useState({ posts: [], hasMore: false, status: 'loading', loadingMore: false });
+    const [popular, setPopular] = useState({ posts: [], status: 'idle' });
+    const [results, setResults] = useState({ term: '', people: [], posts: [], status: 'idle' });
+    const [reloadKey, setReloadKey] = useState(0);
+    const [searchKey, setSearchKey] = useState(0);
+    const [viewer, setViewer] = useState(null); // { source, index }
+    const [toast, setToast] = useState(null);
+    const toastTimer = useRef(null);
+    const sentinelRef = useRef(null);
+
+    const showToast = useCallback((text, tone = 'info') => {
+        clearTimeout(toastTimer.current);
+        setToast({ text, tone, id: Date.now() });
+        toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
+    }, []);
+
+    useEffect(() => () => clearTimeout(toastTimer.current), []);
 
     useEffect(() => {
-        if (user) {
-            loadExplorePosts();
-        }
-    }, [user]);
+        if (!userId) return;
+        fetchOwnProfile(userId, signupName).then(setMe).catch(() => {});
+    }, [userId, signupName]);
 
-    async function loadExplorePosts() {
-        setLoading(true);
-        setError('');
+    // Keep the box in step with the URL (back/forward), and push typing to the URL.
+    useEffect(() => {
+        const t = setTimeout(() => {
+            const next = input.trim();
+            if (next === query) return;
+            const params = {};
+            if (next) params.q = next;
+            if (tab === 'popular') params.tab = 'popular';
+            setSearchParams(params, { replace: true });
+        }, 350);
+        return () => clearTimeout(t);
+    }, [input, query, tab, setSearchParams]);
 
+    // ---- Latest -----------------------------------------------------------------
+
+    useEffect(() => {
+        if (!userId) return;
+        let active = true;
+        fetchLatest(userId)
+            .then((page) => active && setLatest({ posts: page.posts, hasMore: page.hasMore, status: 'ready', loadingMore: false }))
+            .catch(() => active && setLatest((s) => ({ ...s, status: 'error' })));
+        return () => {
+            active = false;
+        };
+    }, [userId, reloadKey]);
+
+    const loadMore = useCallback(async () => {
+        if (!latest.hasMore || latest.loadingMore || latest.posts.length === 0) return;
+        setLatest((s) => ({ ...s, loadingMore: true }));
         try {
-            // 1. Fetch posts from other users
-            const { data: postData, error: postError } = await supabase
-                .from('posts')
-                .select('*')
-                .neq('user_id', user.id)
-                .order('created_at', { ascending: false });
+            const page = await fetchLatest(userId, latest.posts[latest.posts.length - 1].created_at);
+            setLatest((s) => {
+                const ids = new Set(s.posts.map((p) => p.id));
+                return {
+                    ...s,
+                    posts: [...s.posts, ...page.posts.filter((p) => !ids.has(p.id))],
+                    hasMore: page.hasMore,
+                    loadingMore: false,
+                };
+            });
+        } catch {
+            setLatest((s) => ({ ...s, loadingMore: false }));
+            showToast('Couldn’t load more posts. Try again.', 'error');
+        }
+    }, [latest, userId, showToast]);
 
-            if (postError) throw postError;
+    useEffect(() => {
+        const el = sentinelRef.current;
+        if (!el || !latest.hasMore || query || tab !== 'latest') return;
+        const observer = new IntersectionObserver((entries) => entries[0].isIntersecting && loadMore(), {
+            rootMargin: '500px 0px',
+        });
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [latest.hasMore, loadMore, query, tab]);
 
-            const allPosts = postData || [];
+    // ---- Popular ------------------------------------------------------------------
 
-            if (allPosts.length === 0) {
-                setPosts([]);
-                setLikedPosts(new Set());
-                return;
-            }
+    const needPopular = tab === 'popular' && popular.status === 'idle';
+    useEffect(() => {
+        if (!needPopular || !userId) return;
+        let active = true;
+        fetchPopular(userId)
+            .then((posts) => active && setPopular({ posts, status: 'ready' }))
+            .catch(() => active && setPopular({ posts: [], status: 'error' }));
+        return () => {
+            active = false;
+        };
+    }, [needPopular, userId]);
 
-            // 2. Collect unique user IDs
-            const userIds = [
-                ...new Set(allPosts.map((post) => post.user_id)),
-            ];
+    // ---- Search --------------------------------------------------------------------
 
-            // 3. Fetch profiles separately
-            const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('id, full_name, username, avatar_url')
-                .in('id', userIds);
+    useEffect(() => {
+        if (!query || !userId) return;
+        let active = true;
+        Promise.all([searchPeople(userId, query), searchPosts(userId, query)])
+            .then(([people, posts]) => active && setResults({ term: query, people, posts, status: 'ready' }))
+            .catch(() => active && setResults({ term: query, people: [], posts: [], status: 'error' }));
+        return () => {
+            active = false;
+        };
+    }, [query, userId, searchKey]);
 
-            if (profileError) throw profileError;
+    const searching = Boolean(query);
+    const resultsReady = results.term === query && results.status !== 'idle';
 
-            // 4. Fetch likes separately
-            const postIds = allPosts.map((post) => post.id);
+    // ---- Viewer ---------------------------------------------------------------------
 
-            const { data: likeData, error: likeError } = await supabase
-                .from('likes')
-                .select('id, post_id, user_id')
-                .in('post_id', postIds);
+    const listFor = (source) =>
+        source === 'popular' ? popular.posts : source === 'search' ? results.posts : latest.posts;
 
-            if (likeError) throw likeError;
+    const patchPost = (id, patch) => {
+        const apply = (list) => list.map((p) => (p.id === id ? { ...p, ...patch } : p));
+        setLatest((s) => ({ ...s, posts: apply(s.posts) }));
+        setPopular((s) => ({ ...s, posts: apply(s.posts) }));
+        setResults((s) => ({ ...s, posts: apply(s.posts) }));
+    };
 
-            // 5. Combine posts, profiles and likes
-            const profileMap = new Map(
-                (profileData || []).map((profile) => [
-                    profile.id,
-                    profile,
-                ])
+    const removePost = (id) => {
+        const drop = (list) => list.filter((p) => p.id !== id);
+        setLatest((s) => ({ ...s, posts: drop(s.posts) }));
+        setPopular((s) => ({ ...s, posts: drop(s.posts) }));
+        setResults((s) => ({ ...s, posts: drop(s.posts) }));
+        setViewer(null);
+        showToast('Post deleted.');
+    };
+
+    const changeTab = (next) => {
+        const params = {};
+        if (next === 'popular') params.tab = 'popular';
+        setSearchParams(params, { replace: true });
+    };
+
+    // ---- Render ---------------------------------------------------------------------
+
+    const emptyState = (icon, title, text, action = null) => (
+        <div className="ex-empty">
+            <div className="ex-empty-icon">{icon}</div>
+            <h2>{title}</h2>
+            <p>{text}</p>
+            {action}
+        </div>
+    );
+
+    const retryButton = (onClick) => (
+        <button type="button" className="ex-button" onClick={onClick}>
+            <RotateCw size={16} aria-hidden="true" /> Try again
+        </button>
+    );
+
+    let content;
+    if (searching) {
+        if (!resultsReady) {
+            content = <SkeletonGrid />;
+        } else if (results.status === 'error') {
+            content = emptyState(
+                <RotateCw size={26} aria-hidden="true" />,
+                'Search didn’t work',
+                'Check your connection and try again.',
+                retryButton(() => {
+                    setResults({ term: '', people: [], posts: [], status: 'idle' });
+                    setSearchKey((k) => k + 1);
+                })
             );
-
-            const likesByPost = new Map();
-
-            (likeData || []).forEach((like) => {
-                if (!likesByPost.has(like.post_id)) {
-                    likesByPost.set(like.post_id, []);
-                }
-
-                likesByPost.get(like.post_id).push(like);
-            });
-
-            const combinedPosts = allPosts.map((post) => ({
-                ...post,
-                profiles: profileMap.get(post.user_id) || null,
-                likes: likesByPost.get(post.id) || [],
-            }));
-
-            setPosts(combinedPosts);
-
-            // 6. Identify posts already liked by current user
-            const userLikes = new Set();
-
-            combinedPosts.forEach((post) => {
-                if (
-                    post.likes.some((like) => like.user_id === user.id)
-                ) {
-                    userLikes.add(post.id);
-                }
-            });
-
-            setLikedPosts(userLikes);
-        } catch (err) {
-            console.error('Explore loading error:', err);
-            setError(err.message || 'Could not load posts.');
-        } finally {
-            setLoading(false);
+        } else if (results.people.length === 0 && results.posts.length === 0) {
+            content = emptyState(
+                <Search size={26} aria-hidden="true" />,
+                `No results for “${query}”`,
+                'Try a different name, username or word.'
+            );
+        } else {
+            content = (
+                <div className="ex-results">
+                    {results.people.length > 0 && (
+                        <section aria-labelledby="ex-people">
+                            <h2 id="ex-people" className="ex-section-title">People</h2>
+                            <ul className="ex-people">
+                                {results.people.map((person) => (
+                                    <li key={person.id}>
+                                        <Link
+                                            to={person.username ? `/u/${person.username}` : '/friends?tab=discover'}
+                                            className="ex-person"
+                                        >
+                                            <Avatar profile={person} size={48} />
+                                            <span className="ex-person-text">
+                                                <strong>{nameOf(person)}</strong>
+                                                {person.username && <span>@{person.username}</span>}
+                                            </span>
+                                        </Link>
+                                    </li>
+                                ))}
+                            </ul>
+                        </section>
+                    )}
+                    {results.posts.length > 0 && (
+                        <section aria-labelledby="ex-posts">
+                            <h2 id="ex-posts" className="ex-section-title">Posts</h2>
+                            <TileGrid
+                                posts={results.posts}
+                                label="Matching posts"
+                                onOpen={(index) => setViewer({ source: 'search', index })}
+                            />
+                        </section>
+                    )}
+                </div>
+            );
         }
-    }
-
-    async function handleLike(postId) {
-        if (actionId) return;
-
-        setActionId(postId);
-
-        const alreadyLiked = likedPosts.has(postId);
-
-        try {
-            if (alreadyLiked) {
-                const { error: deleteError } = await supabase
-                    .from('likes')
-                    .delete()
-                    .eq('post_id', postId)
-                    .eq('user_id', user.id);
-
-                if (deleteError) throw deleteError;
-
-                setLikedPosts((current) => {
-                    const updated = new Set(current);
-                    updated.delete(postId);
-                    return updated;
-                });
-
-                setPosts((current) =>
-                    current.map((post) =>
-                        post.id === postId
-                            ? {
-                                ...post,
-                                likes: post.likes.filter(
-                                    (like) => like.user_id !== user.id
-                                ),
-                            }
-                            : post
-                    )
-                );
-            } else {
-                const { data, error: insertError } = await supabase
-                    .from('likes')
-                    .insert({
-                        post_id: postId,
-                        user_id: user.id,
-                    })
-                    .select()
-                    .single();
-
-                if (insertError) throw insertError;
-
-                setLikedPosts((current) => new Set(current).add(postId));
-
-                setPosts((current) =>
-                    current.map((post) =>
-                        post.id === postId
-                            ? {
-                                ...post,
-                                likes: [...post.likes, data],
-                            }
-                            : post
-                    )
-                );
-            }
-        } catch (err) {
-            console.error('Like error:', err);
-            setError(err.message || 'Could not update like.');
-        } finally {
-            setActionId(null);
+    } else if (tab === 'popular') {
+        if (popular.status === 'idle') content = <SkeletonGrid />;
+        else if (popular.status === 'error') {
+            content = emptyState(
+                <RotateCw size={26} aria-hidden="true" />,
+                'We couldn’t load popular posts',
+                'Check your connection and try again.',
+                retryButton(() => setPopular({ posts: [], status: 'idle' }))
+            );
+        } else if (popular.posts.length === 0) {
+            content = emptyState(
+                <Flame size={26} aria-hidden="true" />,
+                'Nothing popular yet',
+                'Posts with likes and comments from the last 30 days show up here.',
+                <button type="button" className="ex-button" onClick={() => changeTab('latest')}>See latest posts</button>
+            );
+        } else {
+            content = (
+                <TileGrid posts={popular.posts} label="Popular posts" onOpen={(index) => setViewer({ source: 'popular', index })} />
+            );
         }
-    }
-
-    const term = search.toLowerCase().trim();
-
-    const filteredPosts = posts.filter((post) => {
-        const caption = (post.caption || '').toLowerCase();
-        const name = (post.profiles?.full_name || '').toLowerCase();
-        const username = (post.profiles?.username || '').toLowerCase();
-
-        return (
-            caption.includes(term) ||
-            name.includes(term) ||
-            username.includes(term)
+    } else if (latest.status === 'loading') {
+        content = <SkeletonGrid />;
+    } else if (latest.status === 'error') {
+        content = emptyState(
+            <RotateCw size={26} aria-hidden="true" />,
+            'We couldn’t load posts',
+            'Check your connection and try again.',
+            retryButton(() => {
+                setLatest((s) => ({ ...s, status: 'loading' }));
+                setReloadKey((k) => k + 1);
+            })
         );
-    });
+    } else if (latest.posts.length === 0) {
+        content = emptyState(
+            <Compass size={26} aria-hidden="true" />,
+            'Nothing to explore yet',
+            'When other people share posts, they’ll show up here.',
+            <Link to="/friends?tab=discover" className="ex-button primary">Find people</Link>
+        );
+    } else {
+        content = (
+            <>
+                <TileGrid posts={latest.posts} label="Latest posts" onOpen={(index) => setViewer({ source: 'latest', index })} />
+                {latest.hasMore ? (
+                    <div ref={sentinelRef} className="ex-more">
+                        <button type="button" className="ex-button" onClick={loadMore} disabled={latest.loadingMore}>
+                            {latest.loadingMore && <LoaderCircle size={16} className="spin" aria-hidden="true" />}
+                            {latest.loadingMore ? 'Loading…' : 'Load more'}
+                        </button>
+                    </div>
+                ) : (
+                    <p className="ex-end">You’ve seen all the latest posts.</p>
+                )}
+            </>
+        );
+    }
+
+    const viewerPosts = viewer ? listFor(viewer.source) : [];
 
     return (
         <div className="explore-layout">
             <Sidebar activePage="Explore" onLogout={logout} />
 
             <main className="explore-main">
-                <header className="explore-header">
-                    <div>
-                        <span className="explore-eyebrow">
-                            DISCOVER CONNECTIFY
-                        </span>
-                        <h1>Explore</h1>
-                        <p>
-                            Discover what people in your community are sharing.
-                        </p>
-                    </div>
-
-                    <div className="explore-icon">
-                        <Compass size={27} />
+                <header className="ex-header">
+                    <h1>Explore</h1>
+                    <div className="ex-search">
+                        <Search size={19} aria-hidden="true" />
+                        <input
+                            id="explore-search"
+                            type="search"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Escape' && setInput('')}
+                            placeholder="Search people and posts"
+                            aria-label="Search people and posts"
+                            autoComplete="off"
+                        />
+                        {input && (
+                            <button type="button" className="ex-search-clear" onClick={() => setInput('')} aria-label="Clear search">
+                                <X size={16} />
+                            </button>
+                        )}
                     </div>
                 </header>
 
-                <div className="explore-search">
-                    <Search size={20} />
-
-                    <input
-                        type="text"
-                        placeholder="Search posts, people or usernames..."
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                    />
-                </div>
-
-                {error && (
-                    <p className="explore-error" role="alert">
-                        {error}
-                    </p>
+                {!searching && (
+                    <div className="ex-tabs" role="group" aria-label="Sort posts">
+                        <button
+                            type="button"
+                            className={`ex-tab${tab === 'latest' ? ' active' : ''}`}
+                            aria-pressed={tab === 'latest'}
+                            onClick={() => changeTab('latest')}
+                        >
+                            <Sparkles size={16} aria-hidden="true" /> Latest
+                        </button>
+                        <button
+                            type="button"
+                            className={`ex-tab${tab === 'popular' ? ' active' : ''}`}
+                            aria-pressed={tab === 'popular'}
+                            onClick={() => changeTab('popular')}
+                        >
+                            <Flame size={16} aria-hidden="true" /> Popular
+                        </button>
+                    </div>
                 )}
 
-                <section className="explore-content">
-                    <div className="explore-section-heading">
-                        <h2>{search ? 'Search Results' : 'Discover Posts'}</h2>
-                        <span>{filteredPosts.length} posts</span>
-                    </div>
-
-                    {loading ? (
-                        <div className="explore-empty">
-                            Loading posts...
-                        </div>
-                    ) : filteredPosts.length === 0 ? (
-                        <div className="explore-empty">
-                            <Compass size={35} />
-
-                            <h3>
-                                {search ? 'No results found' : 'Nothing to explore yet'}
-                            </h3>
-
-                            <p>
-                                {search
-                                    ? 'Try searching with another keyword.'
-                                    : 'Posts from other users will appear here.'}
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="explore-grid">
-                            {filteredPosts.map((post) => {
-                                const isLiked = likedPosts.has(post.id);
-                                const author = post.profiles;
-
-                                return (
-                                    <article
-                                        className="explore-post-card"
-                                        key={post.id}
-                                    >
-                                        <div className="explore-post-author">
-                                            {author?.avatar_url ? (
-                                                <img
-                                                    src={author.avatar_url}
-                                                    alt={author.full_name || 'User'}
-                                                />
-                                            ) : (
-                                                <div className="explore-avatar-placeholder">
-                                                    <User size={18} />
-                                                </div>
-                                            )}
-
-                                            <div>
-                                                <h3>
-                                                    <ProfileLink profile={author}>
-                                                        {author?.full_name || 'Connectify User'}
-                                                    </ProfileLink>
-                                                </h3>
-
-                                                <span>
-                                                    @{author?.username || 'user'}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {post.image_url ? (
-                                            <img
-                                                className="explore-post-image"
-                                                src={post.image_url}
-                                                alt={post.caption || 'Community post'}
-                                            />
-                                        ) : (
-                                            <div className="explore-post-no-image">
-                                                <MessageCircle size={30} />
-                                            </div>
-                                        )}
-
-                                        <div className="explore-post-details">
-                                            {post.caption && (
-                                                <p className="explore-caption">
-                                                    {post.caption}
-                                                </p>
-                                            )}
-
-                                            <div className="explore-post-actions">
-                                                <button
-                                                    type="button"
-                                                    className={isLiked ? 'liked' : ''}
-                                                    onClick={() => handleLike(post.id)}
-                                                    disabled={actionId === post.id}
-                                                    aria-label={
-                                                        isLiked ? 'Unlike post' : 'Like post'
-                                                    }
-                                                >
-                                                    <Heart
-                                                        size={19}
-                                                        fill={isLiked ? 'currentColor' : 'none'}
-                                                    />
-
-                                                    <span>{post.likes.length}</span>
-                                                </button>
-
-                                                <span className="explore-comment-count">
-                                                    <MessageCircle size={19} />
-                                                    Comments
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </article>
-                                );
-                            })}
-                        </div>
-                    )}
-                </section>
+                <section className="ex-content" aria-live="polite">{content}</section>
             </main>
+
+            {viewer && viewerPosts[viewer.index] && (
+                <PostViewer
+                    posts={viewerPosts}
+                    index={viewer.index}
+                    viewer={me ?? { id: userId, full_name: signupName }}
+                    onIndexChange={(index) => setViewer((v) => ({ ...v, index }))}
+                    onClose={() => setViewer(null)}
+                    onPostChange={patchPost}
+                    onPostDeleted={removePost}
+                    onError={(text) => showToast(text, 'error')}
+                />
+            )}
+
+            {toast && (
+                <div key={toast.id} className={`ex-toast ${toast.tone}`} role={toast.tone === 'error' ? 'alert' : 'status'}>
+                    {toast.text}
+                </div>
+            )}
         </div>
     );
 }

@@ -16,11 +16,13 @@ const nameOf = (p) => p?.full_name || p?.username || 'Connectify user';
 
 // Full-screen viewer for one post at a time, with comments, like, delete
 // (for the owner) and previous/next navigation.
-function PostViewer({ posts, index, author, viewer, onIndexChange, onClose, onPostChange, onPostDeleted, onError }) {
+function PostViewer({ posts, index, author: defaultAuthor, viewer, onIndexChange, onClose, onPostChange, onPostDeleted, onError }) {
     const dialogRef = useRef(null);
     const inputRef = useRef(null);
     const post = posts[index];
     const isOwner = post?.user_id === viewer?.id;
+    // Each post can carry its own author (Explore); a profile passes one for all.
+    const author = post?.profile ?? defaultAuthor;
 
     const [comments, setComments] = useState(null);
     const [loadedFor, setLoadedFor] = useState(null);
