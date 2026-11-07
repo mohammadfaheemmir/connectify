@@ -51,3 +51,9 @@ Thumbs.db
 
 # Supabase local development
 .supabase/
+
+# Supabase CLI cache
+supabase/.temp/
+
+# Personal Claude Code settings
+.claude/settings.local.json
