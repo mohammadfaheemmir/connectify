@@ -1,6 +1,6 @@
 
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 
 import { useAuth } from './context/AuthContext';
 import { hasAccountOnDevice } from './lib/authFlow';
@@ -70,6 +70,12 @@ function PublicRoute({ children }) {
     }
 
     return user ? <Navigate to="/" replace /> : children;
+}
+
+// Remount the profile page when moving between users so no stale data shows.
+function UserProfileRoute() {
+    const { username } = useParams();
+    return <Profile key={username} />;
 }
 
 function App() {
@@ -144,6 +150,15 @@ function App() {
                     element={
                         <ProtectedRoute>
                             <Profile />
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/u/:username"
+                    element={
+                        <ProtectedRoute>
+                            <UserProfileRoute />
                         </ProtectedRoute>
                     }
                 />

@@ -686,6 +686,9 @@
 
 /* Confirm dialog */
 .confirm-dialog {
+    /* The global reset (* { margin: 0 }) removes the auto margin that
+       centres modal dialogs, so restore it. */
+    margin: auto;
     width: min(400px, calc(100vw - 32px));
     padding: 0;
     color: #f4f4f5;
